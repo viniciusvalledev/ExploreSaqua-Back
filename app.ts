@@ -1,55 +1,40 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+// O dotenv já é carregado no server.ts, mas não faz mal garantir aqui também,
+// desde que aponte para o lugar certo (mesma pasta).
 import dotenv from "dotenv";
-import sequelize from "./config/database";
 
-// É uma boa prática carregar as variáveis de ambiente o mais cedo possível
-// Se você tem um .env.local, esta linha o carregará. Caso contrário, o dotenv.config() abaixo pegará o .env padrão.
-dotenv.config({ path: path.resolve(__dirname, "..", ".env.local") });
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
-// Rotas de usuário e MEI
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import avaliacaoRoutes from "./routes/avaliacao.routes";
-import estabelecimentoRoutes from "./routes/estabelecimento.routes";
+import localRoutes from "./routes/local.routes";
 import fileRoutes from "./routes/file.routes";
 import adminRoutes from "./routes/admin.routes";
 import { authMiddleware } from "./middlewares/auth.middleware";
 
 const app = express();
-const uploadsPath = path.resolve(process.cwd(), "uploads");
+
+// Ajuste para pegar a pasta uploads na raiz do projeto
+const uploadsPath = path.resolve(__dirname, "uploads");
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
+// Serve os arquivos estáticos (imagens)
 app.use("/uploads", express.static(uploadsPath));
 
-// conecta ao banco com Sequelize
-sequelize
-  .authenticate()
-  .then(() => {
-    console.log("Conexão com o banco estabelecida com sucesso!");
-
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-      console.log(`Servidor rodando na porta ${PORT}`);
-    });
-  })
-  .catch((error: any) => {
-    console.error("Erro ao conectar no banco:", error);
-  });
-
+// Rotas
 app.use("/api/auth", authRoutes);
-app.use("/api/estabelecimentos", estabelecimentoRoutes);
+app.use("/api/local", localRoutes);
 app.use("/api/avaliacoes", avaliacaoRoutes);
 app.use("/api/files", fileRoutes);
-
 app.use("/api/admin", adminRoutes);
 
+// Rotas protegidas
 app.use("/api/users", authMiddleware, userRoutes);
-app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 
 export default app;
