@@ -1,0 +1,336 @@
+// Copie e cole TUDO isto no seu arquivo: src/controllers/EstabelecimentoController.ts
+
+import { Request, Response } from "express";
+import LocalService from "../services/LocalService";
+import fs from "fs/promises";
+import path from "path";
+import Local from "../entities/Local.entity";
+import ContadorVisualizacao from "../entities/ContadorVisualizacao.entity";
+
+class LocalController {
+  private _deleteUploadedFilesOnFailure = async (req: Request) => {
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    if (!files) return;
+    const filesToDelete = Object.values(files).flat();
+    await Promise.all(
+      filesToDelete.map((file) =>
+        fs
+          .unlink(file.path)
+          .catch((err) =>
+            console.error(
+              `Falha ao deletar arquivo ${file.path} durante rollback: ${err.message}`
+            )
+          )
+      )
+    );
+  };
+
+  private _handleError = (error: any, res: Response): Response => {
+    if (error.message && error.message.includes("CNPJ")) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    if (error.message === "E-mail já cadastrado no sistema.") {
+      return res.status(400).json({ message: error.message });
+    }
+    if (error.message === "CNPJ já cadastrado no sistema.") {
+      return res.status(400).json({ message: error.message });
+    }
+    if (
+      error.name === "SequelizeDatabaseError" &&
+      error.message.includes("Data too long for column")
+    ) {
+      let friendlyMessage =
+        "Um dos campos de texto excedeu o limite de caracteres.";
+      if (error.message.includes("'descricao_diferencial'")) {
+        friendlyMessage =
+          "O campo 'Diferencial' excedeu o limite de 130 caracteres.";
+      } else if (error.message.includes("'descricao'")) {
+        friendlyMessage =
+          "O campo 'Descrição' excedeu o limite de 500 caracteres.";
+      }
+      return res.status(400).json({ message: friendlyMessage });
+    }
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res
+        .status(400)
+        .json({ message: "O CNPJ informado já está cadastrado no sistema." });
+    }
+    if (error.message.includes("não encontrado")) {
+      return res.status(404).json({ message: error.message });
+    }
+    console.error("ERRO NÃO TRATADO:", error);
+    return res
+      .status(500)
+      .json({ message: "Ocorreu um erro interno no servidor." });
+  };
+
+  private _moveFilesAndPrepareData = async (
+    req: Request,
+    existingInfo?: { categoria: string; nomeFantasia: string }
+  ): Promise<any> => {
+    const dadosDoFormulario = req.body;
+    const arquivos = req.files as {
+      [fieldname: string]: Express.Multer.File[];
+    };
+
+    const categoria = existingInfo?.categoria || dadosDoFormulario.categoria;
+    const nomeFantasia =
+      existingInfo?.nomeFantasia || dadosDoFormulario.nomeFantasia;
+
+    const sanitize = (name: string) =>
+      (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+    const safeCategoria = sanitize(categoria || "geral");
+    const safeNomeFantasia = sanitize(nomeFantasia || "local_sem_nome");
+
+    const targetDir = path.resolve("uploads", safeCategoria, safeNomeFantasia);
+    await fs.mkdir(targetDir, { recursive: true });
+
+    const moveFile = async (
+      file?: Express.Multer.File
+    ): Promise<string | undefined> => {
+      if (!file) return undefined;
+      const oldPath = file.path;
+      const newPath = path.join(targetDir, file.filename);
+      await fs.rename(oldPath, newPath);
+      return path
+        .join("uploads", safeCategoria, safeNomeFantasia, file.filename)
+        .replace(/\\/g, "/");
+    };
+
+    const logoPath = await moveFile(arquivos["logo"]?.[0]);
+
+    const produtosPaths: string[] = [];
+    if (arquivos["produtos"]) {
+      for (const file of arquivos["produtos"]) {
+        const newPath = await moveFile(file);
+        if (newPath) produtosPaths.push(newPath);
+      }
+    }
+
+    return {
+      ...dadosDoFormulario,
+      ...(logoPath && { logo: logoPath }),
+      ...(produtosPaths.length > 0 && { produtos: produtosPaths }),
+    };
+  };
+
+  public cadastrar = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const dadosCompletos = await this._moveFilesAndPrepareData(req);
+      const novoLocal =
+        await LocalService.cadastrarLocalComImagens(
+          dadosCompletos
+        );
+      return res.status(201).json(novoLocal);
+    } catch (error: any) {
+      await this._deleteUploadedFilesOnFailure(req);
+      return this._handleError(error, res);
+    }
+  };
+
+  public solicitarAtualizacao = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const { cnpj } = req.body;
+      if (!cnpj) {
+        return res.status(400).json({
+          message: "O CNPJ é obrigatório para solicitar uma atualização.",
+        });
+      }
+
+      const localExistente = await Local.findOne({
+        where: { cnpj },
+      });
+      if (!localExistente) {
+        await this._deleteUploadedFilesOnFailure(req);
+        return res.status(404).json({
+          message:
+            "Local não encontrado para atualização, verifique o CNPJ e tente novamente.",
+        });
+      }
+
+      const dadosCompletos = await this._moveFilesAndPrepareData(req, {
+        categoria: localExistente.categoria,
+        nomeFantasia: localExistente.nomeFantasia,
+      });
+
+      const local =
+        await LocalService.solicitarAtualizacaoPorCnpj(
+          cnpj,
+          dadosCompletos
+        );
+
+      return res.status(200).json({
+        message: "Solicitação de atualização enviada para análise.",
+        local,
+      });
+    } catch (error: any) {
+      await this._deleteUploadedFilesOnFailure(req);
+      return this._handleError(error, res);
+    }
+  };
+
+  public solicitarExclusao = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const { cnpj, nome_responsavel, cpf_responsavel, emailLocal } =
+        req.body;
+      if (
+        !cnpj ||
+        !nome_responsavel ||
+        !cpf_responsavel ||
+        !emailLocal
+      ) {
+        await this._deleteUploadedFilesOnFailure(req);
+        return res.status(400).json({
+          message:
+            "CNPJ, nome, CPF do responsável e e-mail são obrigatórios para a exclusão.",
+        });
+      }
+
+      const localExistente = await Local.findOne({
+        where: { cnpj },
+      });
+      if (!localExistente) {
+        await this._deleteUploadedFilesOnFailure(req);
+        return res.status(404).json({
+          message:
+            "Local não encontrado para exclusão, verifique o CNPJ e tente novamente.",
+        });
+      }
+
+      const dadosCompletos = await this._moveFilesAndPrepareData(req, {
+        categoria: localExistente.categoria,
+        nomeFantasia: localExistente.nomeFantasia,
+      });
+
+      await LocalService.solicitarExclusaoPorCnpj(dadosCompletos);
+
+      return res
+        .status(200)
+        .json({ message: "Solicitação de exclusão enviada para análise." });
+    } catch (error: any) {
+      await this._deleteUploadedFilesOnFailure(req);
+      return this._handleError(error, res);
+    }
+  };
+
+  public listarTodos = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const locais = await LocalService.listarTodos();
+      return res.status(200).json(locais);
+    } catch (error: any) {
+      return this._handleError(error, res);
+    }
+  };
+
+  public buscarPorNome = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const nome = req.query.nome as string;
+      const locais = await LocalService.buscarPorNome(nome);
+      return res.status(200).json(locais);
+    } catch (error: any) {
+      return this._handleError(error, res);
+    }
+  };
+
+  public buscarPorId = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const local = await LocalService.buscarPorId(id);
+
+      if (!local) {
+        return res.status(404).json({
+          message: "Local não encontrado.",
+        });
+      }
+      return res.status(200).json(local);
+    } catch (error: any) {
+      return this._handleError(error, res);
+    }
+  };
+  public alterarStatus = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const id = parseInt(req.params.id);
+      const { ativo } = req.body;
+      if (typeof ativo !== "boolean") {
+        return res.status(400).json({
+          message:
+            "O corpo da requisição deve conter a chave 'ativo' com um valor booleano (true/false).",
+        });
+      }
+      const local = await LocalService.alterarStatusAtivo(
+        id,
+        ativo
+      );
+      return res.status(200).json(local);
+    } catch (error: any) {
+      return this._handleError(error, res);
+    }
+  };
+
+  public registrarVisualizacao = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const { identificador } = req.params;
+
+      if (!identificador) {
+        return res
+          .status(400)
+          .json({ message: "Identificador é obrigatório." });
+      }
+
+      let chaveFormatada = identificador.trim().toUpperCase();
+
+      if (
+        chaveFormatada !== "HOME" &&
+        chaveFormatada !== "ESPACO_MEI" &&
+        !chaveFormatada.startsWith("CAT_") &&
+        !chaveFormatada.startsWith("CURSO_")
+      ) {
+        chaveFormatada =
+          "CAT_" +
+          chaveFormatada
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^A-Z0-9]/g, "_");
+      }
+
+      const [registro] = await ContadorVisualizacao.findOrCreate({
+        where: { identificador: chaveFormatada },
+        defaults: { visualizacoes: 0 },
+      });
+
+      await registro.increment("visualizacoes");
+
+      return res.status(200).json({ success: true });
+    } catch (error: any) {
+      console.error("Erro ao registrar visualização:", error);
+      return res
+        .status(500)
+        .json({ message: "Erro interno ao registrar visualização." });
+    }
+  };
+}
+
+export default new LocalController();
