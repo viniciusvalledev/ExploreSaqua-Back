@@ -14,6 +14,8 @@ import localRoutes from "./routes/local.routes";
 import fileRoutes from "./routes/file.routes";
 import adminRoutes from "./routes/admin.routes";
 import { authMiddleware } from "./middlewares/auth.middleware";
+import LocalController from "./controllers/LocalController";
+import router from "./routes/admin.routes";
 
 const app = express();
 
@@ -29,7 +31,8 @@ app.use("/uploads", express.static(uploadsPath));
 
 // Rotas
 app.use("/api/auth", authRoutes);
-app.use("/api/local", localRoutes);
+app.use("/api/locais", localRoutes);
+router.get("/categoria/:categoria", LocalController.buscarPorCategoria);
 app.use("/api/avaliacoes", avaliacaoRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/admin", adminRoutes);

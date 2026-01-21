@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
       null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname),
     );
   },
 });
@@ -40,6 +40,7 @@ const router = Router();
 router.get("/", LocalController.listarTodos);
 router.get("/buscar", LocalController.buscarPorNome);
 router.get("/:id", LocalController.buscarPorId);
+router.get("/categoria/:categoria", LocalController.buscarPorCategoria);
 
 router.post(
   "/",
@@ -49,7 +50,7 @@ router.post(
     { name: "ccmei", maxCount: 1 },
   ]),
   compressImages,
-  LocalController.cadastrar
+  LocalController.cadastrar,
 );
 
 router.put(
@@ -60,20 +61,20 @@ router.put(
     { name: "ccmei", maxCount: 1 },
   ]),
   compressImages,
-  LocalController.solicitarAtualizacao
+  LocalController.solicitarAtualizacao,
 );
 
 router.post(
   "/solicitar-exclusao",
   upload.fields([{ name: "ccmei", maxCount: 1 }]),
-  LocalController.solicitarExclusao
+  LocalController.solicitarExclusao,
 );
 
 router.post("/:id/status", LocalController.alterarStatus);
 
 router.post(
   "/visualizacao/:identificador",
-  LocalController.registrarVisualizacao
+  LocalController.registrarVisualizacao,
 );
 
 export default router;

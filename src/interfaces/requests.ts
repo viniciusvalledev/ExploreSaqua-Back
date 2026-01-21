@@ -1,3 +1,5 @@
+import { StatusLocal } from "../entities/Local.entity";
+
 export interface IUpdateProfileRequest {
   nomeCompleto?: string;
   username?: string;
@@ -10,18 +12,20 @@ export interface IUpdatePasswordRequest {
 }
 
 export interface ICreateUpdateEstabelecimentoRequest {
+  localId?: number;
   categoria?: string;
   contatoLocal?: string;
-  cnpj?: string;
   nomeFantasia?: string;
-  emailLocal?: string;
   endereco?: string;
   descricao?: string;
-  descricaoDiferencial?: string;
   tagsInvisiveis?: string;
-  website?: string;
   instagram?: string;
   ativo?: boolean;
-  logoUrl?: string;
+  status?: StatusLocal;
+  dados_atualizacao?: object | null;
+  nomeResponsavel?: string;
+  cpfResponsavel?: string;
   areasAtuacao?: string;
+  latitude?: number;
+  longitude?: number;
 }
