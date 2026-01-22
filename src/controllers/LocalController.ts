@@ -46,7 +46,7 @@ class LocalController {
 
   private _moveFilesAndPrepareData = async (
     req: Request,
-    existingInfo?: { categoria: string; nomeFantasia: string },
+    existingInfo?: { categoria: string; nomeLocal: string },
   ): Promise<any> => {
     const dadosDoFormulario = req.body;
     const arquivos = req.files as {
@@ -54,17 +54,17 @@ class LocalController {
     };
 
     const categoria = existingInfo?.categoria || dadosDoFormulario.categoria;
-    const nomeFantasia =
-      existingInfo?.nomeFantasia ||
-      dadosDoFormulario.nomeFantasia ||
+    const nomeLocal =
+      existingInfo?.nomeLocal ||
+      dadosDoFormulario.nomeLocal ||
       dadosDoFormulario.nomeProjeto;
 
     const sanitize = (name: string) =>
       (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
     const safeCategoria = sanitize(categoria || "geral");
-    const safeNomeFantasia = sanitize(nomeFantasia || "local_sem_nome");
+    const safenomeLocal = sanitize(nomeLocal || "local_sem_nome");
 
-    const targetDir = path.resolve("uploads", safeCategoria, safeNomeFantasia);
+    const targetDir = path.resolve("uploads", safeCategoria, safenomeLocal);
     await fs.mkdir(targetDir, { recursive: true });
 
     const moveFile = async (
@@ -75,7 +75,7 @@ class LocalController {
       const newPath = path.join(targetDir, file.filename);
       await fs.rename(oldPath, newPath);
       return path
-        .join("uploads", safeCategoria, safeNomeFantasia, file.filename)
+        .join("uploads", safeCategoria, safenomeLocal, file.filename)
         .replace(/\\/g, "/");
     };
 
@@ -140,7 +140,7 @@ class LocalController {
 
       const dadosCompletos = await this._moveFilesAndPrepareData(req, {
         categoria: localExistente.categoria,
-        nomeFantasia: localExistente.nomeFantasia,
+        nomeLocal: localExistente.nomeLocal,
       });
 
       const local = await LocalService.solicitarAtualizacao(
@@ -182,7 +182,7 @@ class LocalController {
 
       const dadosCompletos = await this._moveFilesAndPrepareData(req, {
         categoria: localExistente.categoria,
-        nomeFantasia: localExistente.nomeFantasia,
+        nomeLocal: localExistente.nomeLocal,
       });
 
       await LocalService.solicitarExclusao(localId, dadosCompletos);
@@ -226,7 +226,7 @@ class LocalController {
     res: Response,
   ): Promise<Response> => {
     try {
-      const nome = req.query.nome as string;
+      const nome = (req.params.nome || req.query.nome) as string;
       const locais = await LocalService.buscarPorNome(nome);
       return res.status(200).json(locais);
     } catch (error: any) {

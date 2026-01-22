@@ -10,7 +10,7 @@ class LocalService {
     const transaction = await sequelize.transaction();
     try {
       const dadosParaCriacao = {
-        nomeFantasia: dados.nomeFantasia || dados.nomeProjeto,
+        nomeLocal: dados.nomeLocal,
         categoria: dados.categoria,
         nomeResponsavel: dados.nome_responsavel || dados.nomeResponsavel,
         cpfResponsavel: dados.cpf_responsavel || dados.cpfResponsavel,
@@ -112,7 +112,7 @@ class LocalService {
   public async buscarPorNome(nome: string): Promise<Local[]> {
     return Local.findAll({
       where: {
-        nomeFantasia: {
+        nomeLocal: {
           [Op.like]: `%${nome}%`,
         },
         status: StatusLocal.ATIVO,

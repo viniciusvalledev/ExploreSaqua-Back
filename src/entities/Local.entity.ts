@@ -13,7 +13,7 @@ class Local extends Model {
   public localId!: number;
   public categoria!: string;
   public contatoLocal!: string;
-  public nomeFantasia!: string;
+  public nomeLocal!: string;
   public endereco!: string;
   public descricao!: string;
   public tagsInvisiveis!: string;
@@ -55,10 +55,10 @@ Local.init(
       allowNull: true,
       field: "contato_local",
     },
-    nomeFantasia: {
+    nomeLocal: {
       type: DataTypes.STRING,
       allowNull: true,
-      field: "nome_fantasia",
+      field: "nome_local",
     },
     endereco: {
       type: DataTypes.STRING,

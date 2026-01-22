@@ -39,6 +39,7 @@ const router = Router();
 
 router.get("/", LocalController.listarTodos);
 router.get("/buscar", LocalController.buscarPorNome);
+router.get("/nome/:nome", LocalController.buscarPorNome);
 router.get("/:id", LocalController.buscarPorId);
 router.get("/categoria/:categoria", LocalController.buscarPorCategoria);
 

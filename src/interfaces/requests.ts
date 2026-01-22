@@ -15,7 +15,7 @@ export interface ICreateUpdateEstabelecimentoRequest {
   localId?: number;
   categoria?: string;
   contatoLocal?: string;
-  nomeFantasia?: string;
+  nomeLocal?: string;
   endereco?: string;
   descricao?: string;
   tagsInvisiveis?: string;
