@@ -1,11 +1,5 @@
 import { Request, Response } from "express";
 import AuthService from "../services/AuthService";
-import Local, {
-  StatusLocal,
-} from "../entities/Local.entity";
-import ImagemLocal from "../entities/ImagemLocal.entity"; // ADICIONAR IMPORT
-import * as jwt from "jsonwebtoken";
-import { Op } from "sequelize";
 
 class AuthController {
   public async cadastrar(req: Request, res: Response): Promise<Response> {

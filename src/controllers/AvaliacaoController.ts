@@ -69,7 +69,7 @@ class AvaliacaoController {
       return res.status(400).json({ message: error.message });
     }
   }
-  // MODIFICADO: Renomeado de 'listarPorProjeto' para 'listarPorEstabelecimento'
+
   public async listarPorLocal(
     req: Request,
     res: Response

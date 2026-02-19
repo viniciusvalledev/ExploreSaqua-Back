@@ -16,14 +16,13 @@ class Local extends Model {
   public nomeLocal!: string;
   public endereco!: string;
   public descricao!: string;
-  public tagsInvisiveis!: string;
-  public instagram!: string;
+  public instagram!: string; //?
   public ativo!: boolean;
   public status!: StatusLocal;
+  public logoUrl!: string;
   public dados_atualizacao!: object | null;
   public nomeResponsavel!: string;
   public cpfResponsavel!: string;
-  public areasAtuacao!: string;
   public latitude!: number;
   public longitude!: number;
 }
@@ -35,6 +34,10 @@ Local.init(
       autoIncrement: true,
       primaryKey: true,
       field: "local_id",
+    },
+        logoUrl: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     categoria: {
       type: DataTypes.STRING,
@@ -68,11 +71,6 @@ Local.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    tagsInvisiveis: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      field: "tags_invisiveis",
-    },
     instagram: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -92,11 +90,6 @@ Local.init(
       type: DataTypes.JSON,
       allowNull: true,
       field: "dados_atualizacao",
-    },
-    areasAtuacao: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-      field: "area_atuacao",
     },
     latitude: {
       type: DataTypes.FLOAT,

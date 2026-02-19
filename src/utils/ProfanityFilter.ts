@@ -1,7 +1,7 @@
 // src/utils/ProfanityFilter.ts
 
 const PALAVRAS_PROIBIDAS: string[] = [
-    // Lista Original (já aprimorada)
+    
     "arrombada", "arrombadas", "arrombado", "babaca", "bacurinha", "baitola",
     "bichona", "bixa", "boceta", "boiola", "bolcinha", "bolsinha", "boquete",
     "boqueteira", "boqueteiro", "boquetera", "boquetero", "boquetes", "bosta",
@@ -37,7 +37,7 @@ const PALAVRAS_PROIBIDAS: string[] = [
     "xumbrega", "xupaxota", "xupeta", "xupetinha", "krl", "kct", "vsf",
     "fdp", "tnc", "pqp", "filadaputa", "tomarnocu", "vaisifoder",
 
-    // Novas palavras e abreviações adicionadas
+    
     "anus", "bagos", "bronha", "burra", "burro", "canalha", "chifruda",
     "chifrudo", "clitoris", "cocaina", "coco", "corna", "corno", "cornudo",
     "cretino", "cretina", "crlh", "desgraca", "drogado", "energumeno", "enfia",
@@ -64,22 +64,18 @@ class ProfanityFilter {
     private profanityRegex: RegExp;
 
     constructor() {
-        // Normaliza as palavras da lista (remove acentos) para a regex
         const normalizedWords = PALAVRAS_PROIBIDAS.map(palavra =>
             palavra.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         );
         
-        // Cria a string da regex com bordas de palavra (\b) para garantir que palavras inteiras sejam correspondidas
-        // Ex: \b(cu|bosta|merda)\b
+        
         const regexString = `\\b(${normalizedWords.join('|')})\\b`;
 
-        // Compila a regex de forma otimizada, 'gi' -> global e case-insensitive
+        
         this.profanityRegex = new RegExp(regexString, 'gi');
     }
     
-    /**
-     * Remove acentos e converte para minúsculas para uma comparação eficaz
-     */
+
     private normalizarTexto(input: string): string {
         return input
             .toLowerCase()
@@ -94,8 +90,6 @@ class ProfanityFilter {
 
         const textoNormalizado = this.normalizarTexto(texto);
 
-        // Usa a regex para testar se alguma das palavras proibidas existe como uma "palavra inteira"
-        // Reiniciamos o lastIndex para garantir consistência em múltiplas chamadas
         this.profanityRegex.lastIndex = 0;
         return this.profanityRegex.test(textoNormalizado);
     }

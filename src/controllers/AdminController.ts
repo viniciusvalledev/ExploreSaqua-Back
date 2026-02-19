@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
-import Local, {
-  StatusLocal,
-} from "../entities/Local.entity";
+import Local, { StatusLocal } from "../entities/Local.entity";
 import * as jwt from "jsonwebtoken";
-import ImagemLocal from "../entities/ImagemLocal.entity"; // Verifique se o caminho está correto
+import ImagemLocal from "../entities/ImagemLocal.entity";
 import sequelize from "../config/database";
 import fs from "fs/promises";
 import path from "path";
@@ -14,9 +12,7 @@ import Usuario from "../entities/Usuario.entity";
 import ContadorVisualizacao from "../entities/ContadorVisualizacao.entity";
 
 const ADMIN_USER = process.env.ADMIN_USER;
-
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-
 const JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
 if (!ADMIN_USER || !ADMIN_PASSWORD || !JWT_SECRET) {
@@ -58,8 +54,7 @@ export class AdminController {
     try {
       const includeOptions = {
         model: ImagemLocal,
-        // ***** CORREÇÃO DO ALIAS AQUI *****
-        as: "produtosImg", 
+        as: "produtosImg",
         attributes: ["url"],
       };
 
@@ -94,15 +89,16 @@ export class AdminController {
 
       const local = await Local.findByPk(id, {
         transaction,
-        // ***** ALIAS CORRETO *****
         include: [{ model: ImagemLocal, as: "produtosImg" }],
       });
+      
       if (!local) {
         await transaction.rollback();
         return res
           .status(404)
           .json({ message: "local não encontrado." });
       }
+      
       let emailInfo: { subject: string; html: string } | null = null;
 
       switch (local.status) {
@@ -115,7 +111,7 @@ export class AdminController {
             subject: "Seu cadastro no MeideSaquá foi Aprovado!",
             html: `
               <h1>Olá, ${local.nomeResponsavel}!</h1>
-              <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeFantasia}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
+              <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeLocal}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
               <p>A partir de agora, clientes podem encontrar o seu negócio e deixar avaliações.</p>
               <p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p>
               <br>
@@ -132,31 +128,18 @@ export class AdminController {
               [key: string]: any;
             } = {};
 
-            // ***** CORREÇÃO 1: LISTA DE CAMPOS PERMITIDOS COMPLETA *****
-            // (Agora inclui telefone, email, e todos os outros campos)
             const camposPermitidos: (keyof Local | string)[] = [
-              "nomeFantasia",
-              "cnpj",
               "categoria",
-              "nomeResponsavel",
-              "cpfResponsavel",
-              "emailLocal",
-              "contatoLocal", 
+              "contatoLocal",
+              "nomeLocal",
               "endereco",
               "descricao",
-              "descricaoDiferencial",
-              "areasAtuacao",
-              "tagsInvisiveis",
-              "website",
               "instagram",
-              "descricaoDiferencial",
-              "descricao",
-              "objetivo",
-              "justificativa",
-              "publicoAlvo",
-              "impacto",
+              "nomeResponsavel",
+              "cpfResponsavel",
+              "latitude",
+              "longitude",
             ];
-            // ***** FIM DA CORREÇÃO 1 *****
 
             for (const key of camposPermitidos) {
               if (
@@ -167,9 +150,9 @@ export class AdminController {
               }
             }
 
-            // Lógica para LOGO (Esta já estava correta)
+            // --- LÓGICA DA LOGO RESTAURADA ---
             if (dadosRecebidos.logo) {
-              const logoAntigaUrl = local .logoUrl;
+              const logoAntigaUrl = (local as any).logoUrl || (local as any).logo;
               if (logoAntigaUrl) {
                 try {
                   const filePath = path.join(
@@ -188,16 +171,14 @@ export class AdminController {
               }
               dadosParaAtualizar.logoUrl = dadosRecebidos.logo;
             }
+            // --- FIM LOGICA LOGO ---
 
-            // ***** CORREÇÃO 2: LÓGICA DE IMAGENS *****
-            // (Trocado 'imagens' por 'produtos', que é o nome correto do campo)
+            // Lógica de imagens (Produtos/Portfólio) mantida
             if (
               dadosRecebidos.produtos &&
               Array.isArray(dadosRecebidos.produtos) &&
               dadosRecebidos.produtos.length > 0
             ) {
-              // ***** FIM DA CORREÇÃO 2 *****
-
               const imagensAntigas = await ImagemLocal.findAll({
                 where: { localId: local.localId },
                 transaction,
@@ -220,9 +201,7 @@ export class AdminController {
                 transaction,
               });
 
-              // ***** CORREÇÃO 2 (continuação) *****
               const novasImagens = dadosRecebidos.produtos.map(
-                // ***** FIM DA CORREÇÃO 2 *****
                 (url: string) => ({
                   url,
                   localId: local.localId,
@@ -248,7 +227,7 @@ export class AdminController {
               "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
             html: `
               <h1>Olá, ${local.nomeResponsavel}!</h1>
-              <p>A sua solicitação para atualizar os dados do local <strong>${local.nomeFantasia}</strong> foi aprovada.</p>
+              <p>A sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> foi aprovada.</p>
               <p>As novas informações já estão visíveis para todos na plataforma.</p>
               <br>
               <p>Atenciosamente,</p>
@@ -260,11 +239,10 @@ export class AdminController {
         case StatusLocal.PENDENTE_EXCLUSAO:
           // TODO: Adicionar lógica para deletar arquivos (logo, imagens) ANTES do destroy
           emailInfo = {
-            subject:
-              "Seu local foi removido da plataforma MeideSaquá",
+            subject: "Seu local foi removido da plataforma MeideSaquá",
             html: `
               <h1>Olá, ${local.nomeResponsavel}.</h1>
-              <p>Informamos que a sua solicitação para remover o local <strong>${local.nomeFantasia}</strong> da nossa plataforma foi concluída com sucesso.</p>
+              <p>Informamos que a sua solicitação para remover o local <strong>${local.nomeLocal}</strong> da nossa plataforma foi concluída com sucesso.</p>
               <p>Lamentamos a sua partida e esperamos poder colaborar com você novamente no futuro.</p>
               <br>
               <p>Atenciosamente,</p>
@@ -273,31 +251,30 @@ export class AdminController {
           };
           await local.destroy({ transaction });
           responseMessage = "local excluído com sucesso.";
-
           break;
       }
 
       await transaction.commit();
 
-      if (emailInfo && local.emailLocal) {
+      if (emailInfo && local.contatoLocal) {
         try {
           await EmailService.sendGenericEmail({
-            to: local.emailLocal,
+            to: local.contatoLocal,
             subject: emailInfo.subject,
             html: emailInfo.html,
           });
           console.log(
-            `Email de notificação enviado com sucesso para ${local.emailLocal}`
+            `Email de notificação enviado com sucesso para ${local.contatoLocal}`
           );
         } catch (error) {
           console.error(
-            `Falha ao enviar email de notificação para ${local.emailLocal}:`,
+            `Falha ao enviar email de notificação para ${local.contatoLocal}:`,
             error
           );
         }
       } else if (emailInfo) {
         console.warn(
-          `Tentativa de enviar email para local ID ${local.localId} sem emailContato definido.`
+          `Tentativa de enviar email para local ID ${local.localId} sem contatoLocal definido.`
         );
       }
 
@@ -310,11 +287,11 @@ export class AdminController {
         .json({ message: "Erro ao aprovar a solicitação." });
     }
   }
+
   static async editAndApproveRequest(req: Request, res: Response) {
     const { id } = req.params;
     const adminEditedData = req.body;
 
-    // ***** CORREÇÃO 1: Fazer o parse do urlsParaExcluir (que vem como string JSON) *****
     let { urlsParaExcluir } = adminEditedData;
     if (urlsParaExcluir && typeof urlsParaExcluir === "string") {
       try {
@@ -327,15 +304,13 @@ export class AdminController {
         urlsParaExcluir = [];
       }
     }
-    // ***** FIM DA CORREÇÃO 1 *****
 
     const transaction = await sequelize.transaction();
 
     try {
       const local = await Local.findByPk(id, {
         transaction,
-        // ***** CORREÇÃO DO ALIAS AQUI *****
-        include: [{ model: ImagemLocal, as: "produtosImg" }], // <-- Este é o alias correto
+        include: [{ model: ImagemLocal, as: "produtosImg" }],
       });
 
       if (!local) {
@@ -353,14 +328,13 @@ export class AdminController {
         statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO &&
         local.dados_atualizacao
       ) {
-        // Lógica para LOGO
-
-        // ***** CORREÇÃO 2: Corrigir o bug do hasOwnProperty E checar por "DELETE" *****
+        
+        // --- LÓGICA DA LOGO RESTAURADA ---
         if (
           "logoUrl" in adminEditedData &&
           adminEditedData.logoUrl === "DELETE"
         ) {
-          const logoAntigaUrl = local.logoUrl || dadosRecebidos.logo;
+          const logoAntigaUrl = (local as any).logoUrl || dadosRecebidos.logo;
           if (logoAntigaUrl) {
             try {
               const filePath = path.join(__dirname, "..", "..", logoAntigaUrl);
@@ -374,9 +348,8 @@ export class AdminController {
           }
           adminEditedData.logoUrl = null;
         }
-        // ***** FIM DA CORREÇÃO 2 *****
         else if (dadosRecebidos.logo) {
-          const logoAntigaUrl = local.logoUrl;
+          const logoAntigaUrl = (local as any).logoUrl;
           if (logoAntigaUrl) {
             try {
               const filePath = path.join(__dirname, "..", "..", logoAntigaUrl);
@@ -390,6 +363,7 @@ export class AdminController {
           }
           adminEditedData.logoUrl = dadosRecebidos.logo;
         }
+        // --- FIM LÓGICA LOGO ---
 
         // Lógica para IMAGENS
         if (
@@ -407,7 +381,7 @@ export class AdminController {
               const filePath = path.join(__dirname, "..", "..", imagem.url);
               await fs.unlink(filePath);
             } catch (err) {
-              /* ... log ... */
+              // ignora
             }
           }
 
@@ -443,7 +417,7 @@ export class AdminController {
               const filePath = path.join(__dirname, "..", "..", imagem.url);
               await fs.unlink(filePath);
             } catch (err) {
-              /* ... log ... */
+              // ignora
             }
           }
 
@@ -471,29 +445,29 @@ export class AdminController {
       if (statusOriginal === StatusLocal.PENDENTE_APROVACAO) {
         emailInfo = {
           subject: "Seu cadastro no MeideSaquá foi Aprovado!",
-          html: `<h1>Olá, ${local.nomeResponsavel}!</h1> <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeFantasia}</strong>, foi aprovado (com algumas edições do administrador) e já está visível na nossa plataforma!</p><p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá.</strong></p>`,
+          html: `<h1>Olá, ${local.nomeResponsavel}!</h1> <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeLocal}</strong>, foi aprovado (com algumas edições do administrador) e já está visível na nossa plataforma!</p><p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá.</strong></p>`,
         };
       } else if (
         statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO
       ) {
         emailInfo = {
           subject: "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
-          html: `<h1>Olá, ${local.nomeResponsavel}!</h1><p>A sua solicitação para atualizar os dados do local <strong>${local.nomeFantasia}</strong> foi aprovada (com algumas edições do administrador).</p><p>As novas informações já estão visíveis para todos na plataforma.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
+          html: `<h1>Olá, ${local.nomeResponsavel}!</h1><p>A sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> foi aprovada (com algumas edições do administrador).</p><p>As novas informações já estão visíveis para todos na plataforma.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
         };
       }
 
       await transaction.commit();
 
-      if (emailInfo && local.emailLocal) {
+      if (emailInfo && local.contatoLocal) {
         try {
           await EmailService.sendGenericEmail({
-            to: local.emailLocal,
+            to: local.contatoLocal,
             subject: emailInfo.subject,
             html: emailInfo.html,
           });
         } catch (error) {
           console.error(
-            `Falha ao enviar email de notificação para ${local.emailLocal}:`,
+            `Falha ao enviar email de notificação para ${local.contatoLocal}:`,
             error
           );
         }
@@ -513,7 +487,6 @@ export class AdminController {
 
   static async getAllActiveLocal(req: Request, res: Response) {
     try {
-      // Esta função chama o Service, que já está correto
       const local = await LocalService.listarTodos();
       return res.json(local);
     } catch (error) {
@@ -524,14 +497,10 @@ export class AdminController {
     }
   }
 
-  // ***** FUNÇÃO UNIFICADA (CHAMADA PELO DASHBOARD E PÁGINA DE ATIVOS) *****
-  // Esta função agora é chamada tanto pelo Dashboard quanto pela página de Ativos
-  // e sabe o que fazer em ambos os casos.
   static async adminUpdateLocal(req: Request, res: Response) {
     const { id } = req.params;
     const adminEditedData = req.body;
 
-    // ***** CORREÇÃO 1: Fazer o parse do urlsParaExcluir (que vem como string JSON) *****
     let { urlsParaExcluir } = adminEditedData;
     if (urlsParaExcluir && typeof urlsParaExcluir === "string") {
       try {
@@ -544,15 +513,13 @@ export class AdminController {
         urlsParaExcluir = [];
       }
     }
-    // ***** FIM DA CORREÇÃO 1 *****
 
     const transaction = await sequelize.transaction();
 
     try {
       const local = await Local.findByPk(id, {
         transaction,
-        // ***** CORREÇÃO DO ALIAS AQUI *****
-        include: [{ model: ImagemLocal, as: "produtosImg" }], // <-- Este é o alias correto
+        include: [{ model: ImagemLocal, as: "produtosImg" }],
       });
 
       if (!local) {
@@ -562,20 +529,17 @@ export class AdminController {
           .json({ message: "Local não encontrado." });
       }
 
-      // ****** LÓGICA COMBINADA (para Dashboard e Ativos) ******
       const statusOriginal = local.status;
       const dadosRecebidos = (local.dados_atualizacao || {}) as any;
       let emailInfo: { subject: string; html: string } | null = null;
 
-      // 1. LÓGICA DE LOGO (UNIFICADA)
-      // ***** CORREÇÃO 2: Corrigir o bug do hasOwnProperty E checar por "DELETE" *****
+      // --- LÓGICA DA LOGO RESTAURADA ---
       if (
         "logoUrl" in adminEditedData &&
         (adminEditedData.logoUrl === "DELETE" ||
           adminEditedData.logoUrl === null)
       ) {
-        // ***** FIM DA CORREÇÃO 2 *****
-        const logoAntigaUrl = local.logoUrl || dadosRecebidos.logo;
+        const logoAntigaUrl = (local as any).logoUrl || dadosRecebidos.logo;
         if (logoAntigaUrl) {
           try {
             const filePath = path.join(__dirname, "..", "..", logoAntigaUrl);
@@ -594,8 +558,7 @@ export class AdminController {
           statusOriginal === StatusLocal.PENDENTE_APROVACAO) &&
         dadosRecebidos.logo
       ) {
-        // Admin está aprovando uma *nova* logo de uma pendência
-        const logoAntigaUrl = local.logoUrl;
+        const logoAntigaUrl = (local as any).logoUrl;
         if (logoAntigaUrl) {
           try {
             const filePath = path.join(__dirname, "..", "..", logoAntigaUrl);
@@ -609,8 +572,9 @@ export class AdminController {
         }
         adminEditedData.logoUrl = dadosRecebidos.logo;
       }
+      // --- FIM LÓGICA LOGO ---
 
-      // 2. LÓGICA DE IMAGENS DO PORTFÓLIO (UNIFICADA)
+      // 1. LÓGICA DE IMAGENS DO PORTFÓLIO
       if (
         (statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO ||
           statusOriginal === StatusLocal.PENDENTE_APROVACAO) &&
@@ -618,9 +582,8 @@ export class AdminController {
         Array.isArray(dadosRecebidos.imagens) &&
         dadosRecebidos.imagens.length > 0
       ) {
-        // Cenário: APROVANDO uma atualização de portfólio
         const imagensAntigas = await ImagemLocal.findAll({
-          where: { LocalId: local.localId },
+          where: { localId: local.localId },
           transaction,
         });
 
@@ -629,12 +592,12 @@ export class AdminController {
             const filePath = path.join(__dirname, "..", "..", imagem.url);
             await fs.unlink(filePath);
           } catch (err) {
-            /* ... log ... */
+            // ignora
           }
         }
 
         await ImagemLocal.destroy({
-          where: { LocalId: local.localId },
+          where: { localId: local.localId },
           transaction,
         });
 
@@ -644,7 +607,7 @@ export class AdminController {
 
         const novasImagens = imagensParaCriar.map((url: string) => ({
           url,
-          LocalId: local.localId,
+          localId: local.localId,
         }));
         await ImagemLocal.bulkCreate(novasImagens, { transaction });
       } else if (
@@ -652,11 +615,10 @@ export class AdminController {
         Array.isArray(urlsParaExcluir) &&
         urlsParaExcluir.length > 0
       ) {
-        // Cenário: APENAS DELETANDO imagens (de um MEI ativo ou pendente)
         const imagensParaDeletar = await ImagemLocal.findAll({
           where: {
             url: urlsParaExcluir,
-            LocalId: local.localId,
+            localId: local.localId,
           },
           transaction,
         });
@@ -695,20 +657,20 @@ export class AdminController {
         if (statusOriginal === StatusLocal.PENDENTE_APROVACAO) {
           emailInfo = {
             subject: "Seu cadastro no MeideSaquá foi Aprovado!",
-            html: `<h1>Olá, ${local.nomeResponsavel}!</h1> <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeFantasia}</strong>, foi aprovado (com algumas edições do administrador) e já está visível na nossa plataforma!</p><p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá.</strong></p>`,
+            html: `<h1>Olá, ${local.nomeResponsavel}!</h1> <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeLocal}</strong>, foi aprovado (com algumas edições do administrador) e já está visível na nossa plataforma!</p><p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá.</strong></p>`,
           };
         } else {
           emailInfo = {
             subject:
               "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
-            html: `<h1>Olá, ${local.nomeResponsavel}!</h1><p>A sua solicitação para atualizar os dados do local <strong>${local.nomeFantasia}</strong> foi aprovada (com algumas edições do administrador).</p><p>As novas informações já estão visíveis para todos na plataforma.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
+            html: `<h1>Olá, ${local.nomeResponsavel}!</h1><p>A sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> foi aprovada (com algumas edições do administrador).</p><p>As novas informações já estão visíveis para todos na plataforma.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
           };
         }
       }
 
       delete updatePayload.localId;
       delete updatePayload.urlsParaExcluir;
-      // Precisamos checar com 'in' por causa do multer
+      
       if ("dados_atualizacao" in updatePayload) {
         updatePayload.dados_atualizacao = null;
       }
@@ -716,19 +678,19 @@ export class AdminController {
       await local.update(updatePayload, { transaction });
       await transaction.commit();
 
-      if (emailInfo && local.emailLocal) {
+      if (emailInfo && local.contatoLocal) {
         try {
           await EmailService.sendGenericEmail({
-            to: local.emailLocal,
+            to: local.contatoLocal,
             subject: emailInfo.subject,
             html: emailInfo.html,
           });
           console.log(
-            `Email de aprovação/atualização enviado para ${local.emailLocal}`
+            `Email de aprovação/atualização enviado para ${local.contatoLocal}`
           );
         } catch (error) {
           console.error(
-            `Falha ao enviar email de notificação para ${local.emailLocal}:`,
+            `Falha ao enviar email de notificação para ${local.contatoLocal}:`,
             error
           );
         }
@@ -794,7 +756,7 @@ export class AdminController {
 
       let responseMessage = "Solicitação rejeitada com sucesso.";
       let emailInfo: { subject: string; html: string } | null = null;
-      const emailParaNotificar = local.emailLocal;
+      const emailParaNotificar = local.contatoLocal; // Usando o contato como via principal
       const motivoHtml = motivoRejeicao
         ? `<p><strong>Motivo da Rejeição:</strong> ${motivoRejeicao}</p>`
         : "<p>Para mais detalhes, entre em contato conosco.</p>";
@@ -806,7 +768,7 @@ export class AdminController {
 
         emailInfo = {
           subject: "Seu cadastro no MeideSaquá foi Rejeitado",
-          html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Lamentamos informar que o cadastro do local <strong>${local.nomeFantasia}</strong> não foi aprovado.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
+          html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Lamentamos informar que o cadastro do local <strong>${local.nomeLocal}</strong> não foi aprovado.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
         };
       } else if (
         local.status === StatusLocal.PENDENTE_ATUALIZACAO ||
@@ -822,12 +784,12 @@ export class AdminController {
           emailInfo = {
             subject:
               "Sua solicitação de atualização no MeideSaquá foi Rejeitada",
-            html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Informamos que a sua solicitação para atualizar os dados do local <strong>${local.nomeFantasia}</strong> não foi aprovada.</p><p>Os dados anteriores foram mantidos.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
+            html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Informamos que a sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> não foi aprovada.</p><p>Os dados anteriores foram mantidos.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
           };
         } else {
           emailInfo = {
             subject: "Sua solicitação de exclusão no MeideSaquá foi Rejeitada",
-            html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Informamos que a sua solicitação para remover o local <strong>${local.nomeFantasia}</strong> não foi aprovada.</p><p>Seu local continua ativo na plataforma.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
+            html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Informamos que a sua solicitação para remover o local <strong>${local.nomeLocal}</strong> não foi aprovada.</p><p>Seu local continua ativo na plataforma.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
           };
         }
       } else {
@@ -875,7 +837,7 @@ export class AdminController {
       const local = await Local.findByPk(
         localId,
         {
-          attributes: ["localId", "nomeFantasia", "categoria"], // Corrigido de nomeLocal
+          attributes: ["localId", "nomeLocal", "categoria"], 
         }
       );
 
@@ -942,6 +904,7 @@ export class AdminController {
       return res.status(500).json({ message: "Erro ao excluir a avaliação." });
     }
   }
+
   static async exportActiveLocals(req: Request, res: Response) {
     try {
       const Locals = await LocalService.listarTodos();
@@ -952,34 +915,27 @@ export class AdminController {
           .json({ message: "Nenhum local ativo para exportar." });
       }
 
-      // Cabeçalhos do CSV
+      // Cabeçalhos do CSV atualizados com os novos dados
       const headers = [
         "ID",
-        "Nome Fantasia",
-        "CNPJ",
+        "Nome Local",
         "Categoria",
         "Responsável",
         "CPF Responsável",
-        "Email",
-        "Telefone",
+        "Contato",
         "Endereço",
         "Descrição",
-        "Diferencial",
-        "Tags Invisíveis",
-        "Website",
         "Instagram",
-        "Venda",
-        "Escala",
+        "Latitude",
+        "Longitude",
         "Status",
       ];
 
       const SEPARATOR = ";";
 
-      // Função auxiliar para escapar campos CSV
       const escapeCsvField = (field: any) => {
         if (field === null || field === undefined) return '""';
         const stringField = String(field);
-        // Trata aspas, vírgulas e quebras de linha
         if (
           stringField.includes('"') ||
           stringField.includes(SEPARATOR) ||
@@ -990,36 +946,27 @@ export class AdminController {
         return `"${stringField}"`;
       };
 
-      // Monta o conteúdo do CSV
       let csvContent = headers.join(SEPARATOR) + "\n";
 
       Locals.forEach((est) => {
         const row = [
           est.localId,
-          est.nomeFantasia,
-          est.cnpj,
+          est.nomeLocal,
           est.categoria,
           est.nomeResponsavel,
           est.cpfResponsavel,
-          est.emailLocal,
           est.contatoLocal,
           est.endereco,
-          est.cnae,
           est.descricao,
-          est.descricaoDiferencial,
-          est.tagsInvisiveis,
-          est.website,
           est.instagram,
-          est.venda,
-          est.escala,
+          est.latitude,
+          est.longitude,
           est.status,
-          "",
         ];
 
         csvContent += row.map(escapeCsvField).join(SEPARATOR) + "\n";
       });
 
-      // Configura os headers da resposta para download
       res.header("Content-Type", "text/csv; charset=utf-8");
       res.attachment("Locals_ativos_meidesaqua.csv");
       return res.status(200).send(csvContent);
@@ -1033,10 +980,10 @@ export class AdminController {
 
   static async getDashboardStats(req: Request, res: Response) {
     try {
-      // 1. Buscando dados básicos (mantido)
+      // Atualizando para não buscar os campos escala e venda (que foram excluídos)
       const Locais = await Local.findAll({
         where: { status: StatusLocal.ATIVO },
-        attributes: ["localId", "categoria", "escala", "venda"],
+        attributes: ["localId", "categoria"], 
       });
 
       const totalLocais = Locais.length;
@@ -1068,30 +1015,12 @@ export class AdminController {
         qtd: qtd,
       }));
 
-      // 2. Processamento dos Gráficos de Categoria, Escala e Vendas (mantido)
       const categoriasMap: { [key: string]: number } = {};
-      const escalaMap: { [key: string]: number } = {};
-      const vendasMap: { [key: string]: number } = {};
 
       Locais.forEach((e) => {
-        // Categoria
         if (e.categoria) {
           const catNome = e.categoria.charAt(0).toUpperCase() + e.categoria.slice(1).toLowerCase();
           categoriasMap[catNome] = (categoriasMap[catNome] || 0) + 1;
-        }
-        // Escala
-        const esc = e.escala ? e.escala.toString() : "0";
-        const labelEscala = `Escala ${esc}`;
-        escalaMap[labelEscala] = (escalaMap[labelEscala] || 0) + 1;
-        // Vendas
-        if (e.venda) {
-          const canais = e.venda.split(",").map((v) => v.trim());
-          canais.forEach((canal) => {
-            if (canal) {
-              const canalFormatado = canal.charAt(0).toUpperCase() + canal.slice(1).toLowerCase();
-              vendasMap[canalFormatado] = (vendasMap[canalFormatado] || 0) + 1;
-            }
-          });
         }
       });
 
@@ -1100,15 +1029,6 @@ export class AdminController {
         .sort((a, b) => b.qtd - a.qtd)
         .slice(0, 10);
 
-      const chartEscalaNegocio = Object.entries(escalaMap)
-        .map(([label, value]) => ({ label, value }))
-        .sort((a, b) => parseInt(b.label.replace(/\D/g, "")) - parseInt(a.label.replace(/\D/g, "")));
-
-      const chartVendas = Object.entries(vendasMap)
-        .map(([canal, qtd]) => ({ canal, qtd }))
-        .sort((a, b) => b.qtd - a.qtd);
-
-      // 3. Processamento de Visualizações e Cliques (ATUALIZADO)
       const totalUsuarios = await Usuario.count();
       const visualizacoesRaw = await ContadorVisualizacao.findAll();
 
@@ -1116,7 +1036,6 @@ export class AdminController {
       const mapaVisualizacoes: { [key: string]: number } = {};
       const mapaCursos: { [key: string]: number } = {};
       
-      // NOVOS CONTADORES ESPECÍFICOS
       const espacoExploreClicks = { gov: 0, wpp: 0, email: 0 };
       let perfilCompartilhado = 0;
 
@@ -1135,7 +1054,6 @@ export class AdminController {
           nomeCurso = nomeCurso.charAt(0).toUpperCase() + nomeCurso.slice(1);
           mapaCursos[nomeCurso] = v.visualizacoes;
         }
-        // --- LÓGICA NOVA PARA OS LINKS ---
         else if (v.identificador === "LINK_GOV") {
           espacoExploreClicks.gov = v.visualizacoes;
         } else if (v.identificador === "LINK_WPP") {
@@ -1164,9 +1082,7 @@ export class AdminController {
         chartLocaisPorCategoria,
         chartVisualizacoesPorCategoria,
         chartDistribuicaoNotas,
-        chartEscalaNegocio,
         pageViews,
-        chartVendas,
         chartCursos,
         espacoExploreClicks,
         perfilCompartilhado

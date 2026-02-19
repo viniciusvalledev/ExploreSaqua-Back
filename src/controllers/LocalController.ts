@@ -54,9 +54,11 @@ class LocalController {
     };
 
     const categoria = existingInfo?.categoria || dadosDoFormulario.categoria;
+    // Mantido fallback para nomeProjeto caso o front-end ainda mande assim
     const nomeLocal =
       existingInfo?.nomeLocal ||
       dadosDoFormulario.nomeLocal ||
+      dadosDoFormulario.nomeFantasia ||
       dadosDoFormulario.nomeProjeto;
 
     const sanitize = (name: string) =>
@@ -79,15 +81,10 @@ class LocalController {
         .replace(/\\/g, "/");
     };
 
-    // Processa os arquivos enviados pelo Front
-    // Nota: Mesmo que o logo não seja salvo no Entity 'Local' (pois removeu logoUrl),
-    // ainda movemos o arquivo para a pasta organizada.
+    // Processa a logo (Restaurado conforme pedido anterior)
     const logoPath = await moveFile(arquivos["logo"]?.[0]);
-    const oficioPath = await moveFile(
-      arquivos["oficio"]?.[0] || arquivos["ccmei"]?.[0],
-    );
 
-    // Galeria de imagens
+    // Galeria de imagens (Produtos / Portfólio)
     const galleryFiles = arquivos["imagens"] || arquivos["produtos"] || [];
     const produtosPaths: string[] = [];
 
@@ -98,8 +95,7 @@ class LocalController {
 
     return {
       ...dadosDoFormulario,
-      ...(logoPath && { logo: logoPath }), // Passa o logo, mas o Service ignora se não tiver campo
-      ...(oficioPath && { oficio: oficioPath }),
+      ...(logoPath && { logoUrl: logoPath }), // Alterado para mapear direto para logoUrl
       ...(produtosPaths.length > 0 && { produtos: produtosPaths }),
     };
   };

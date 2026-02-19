@@ -24,9 +24,9 @@ class EmailService {
   public async sendConfirmationEmail(to: string, token: string): Promise<void> {
     const confirmationUrl = `https://meidesaqua.saquarema.rj.gov.br/confirmar-conta?token=${token}`;
     const message = {
-      from: `"Meidesaqua" <${process.env.MAIL_USER}>`,
+      from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
       to: to,
-      subject: "Confirmação de Cadastro - Meidesaqua",
+      subject: "Confirmação de Cadastro - ExploreSaqua",
       html: `Obrigado por se cadastrar! Por favor, clique no link abaixo para ativar sua conta:<br><br>
                    <a href="${confirmationUrl}">${confirmationUrl}</a><br><br>
                    Se você não se cadastrou em nosso site, por favor ignore este e-mail.`,
@@ -40,9 +40,9 @@ class EmailService {
   ): Promise<void> {
     const resetUrl = `https://meidesaqua.saquarema.rj.gov.br/redefinir-senha?token=${token}`;
     const message = {
-      from: `"Meidesaqua" <${process.env.MAIL_USER}>`,
+      from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
       to: to,
-      subject: "Redefinição de Senha - Meidesaqua",
+      subject: "Redefinição de Senha - ExploreSaqua",
       html: `Recebemos um pedido para redefinir a senha da sua conta.<br><br>
                    Por favor, clique no link abaixo para criar uma nova senha:<br>
                    <a href="${resetUrl}">${resetUrl}</a><br><br>
@@ -57,9 +57,9 @@ class EmailService {
   ): Promise<void> {
     const confirmationUrl = `https://meidesaqua.saquarema.rj.gov.br/confirmar-novo-email?token=${token}`;
     const message = {
-      from: `"Meidesaqua" <${process.env.MAIL_USER}>`,
+      from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
       to: to,
-      subject: "Confirmação de Alteração de E-mail - Meidesaqua",
+      subject: "Confirmação de Alteração de E-mail - ExploreSaqua",
       html: `Recebemos um pedido para alterar o e-mail da sua conta para este endereço.<br><br>
                    Por favor, clique no link abaixo para confirmar a alteração:<br>
                    <a href="${confirmationUrl}">${confirmationUrl}</a><br><br>
@@ -70,7 +70,7 @@ class EmailService {
 
   public async sendGenericEmail(options: EmailOptions): Promise<void> {
     const message = {
-      from: `"MeideSaquá" <${process.env.MAIL_USER}>`,
+      from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,

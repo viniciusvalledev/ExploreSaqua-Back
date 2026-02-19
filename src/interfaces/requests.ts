@@ -18,14 +18,14 @@ export interface ICreateUpdateEstabelecimentoRequest {
   nomeLocal?: string;
   endereco?: string;
   descricao?: string;
-  tagsInvisiveis?: string;
   instagram?: string;
   ativo?: boolean;
   status?: StatusLocal;
   dados_atualizacao?: object | null;
   nomeResponsavel?: string;
   cpfResponsavel?: string;
-  areasAtuacao?: string;
   latitude?: number;
   longitude?: number;
+  logoUrl?: string; 
+  produtos?: string[]; 
 }
