@@ -1,5 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/database";
+import type Usuario from "./Usuario.entity";
 
 export enum StatusLocal {
   PENDENTE_APROVACAO = "pendente_aprovacao",
@@ -27,9 +28,8 @@ class Local extends Model {
   public emailResponsavel!: string; 
   public contatoResponsavel!: string; 
   public alvaraFuncionamentoUrl!: string | null; 
-  public alvaraVigilanciaUrl!: string | null; 
   public longitude!: number;
-  emailLocal!: import("c:/Users/11917033710/Documents/ExploreSaqua-Back/src/entities/Usuario.entity").default | null;
+  public emailLocal!: Usuario | null;
 }
 
 Local.init(

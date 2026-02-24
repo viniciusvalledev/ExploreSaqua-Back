@@ -51,7 +51,7 @@ const dadosParaCriacao = {
     }
   }
 
-public solicitarAtualizacao = async (req: Request, res: Response): Promise<void> => {
+public solicitarAtualizacao = async (p0: number, req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
         const body = req.body;
