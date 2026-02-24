@@ -24,7 +24,12 @@ class Local extends Model {
   public nomeResponsavel!: string;
   public cpfResponsavel!: string;
   public latitude!: number;
+  public emailResponsavel!: string; 
+  public contatoResponsavel!: string; 
+  public alvaraFuncionamentoUrl!: string | null; 
+  public alvaraVigilanciaUrl!: string | null; 
   public longitude!: number;
+  emailLocal!: import("c:/Users/11917033710/Documents/ExploreSaqua-Back/src/entities/Usuario.entity").default | null;
 }
 
 Local.init(
@@ -35,9 +40,32 @@ Local.init(
       primaryKey: true,
       field: "local_id",
     },
-        logoUrl: {
+      logoUrl: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    emailResponsavel: { 
+      type: DataTypes.STRING,
+      allowNull: false,
+      field: "email_responsavel",
+      validate: {
+        isEmail: true
+      }
+    },
+    contatoResponsavel: { 
+      type: DataTypes.STRING,
+      allowNull: false,
+      field: "contato_responsavel",
+    },
+    alvaraFuncionamentoUrl: { 
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "alvara_funcionamento_url",
+    },
+    alvaraVigilanciaUrl: { 
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "alvara_vigilancia_url",
     },
     categoria: {
       type: DataTypes.STRING,

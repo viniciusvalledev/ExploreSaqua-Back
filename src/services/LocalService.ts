@@ -4,36 +4,41 @@ import Local, { StatusLocal } from "../entities/Local.entity";
 import ImagemLocal from "../entities/ImagemLocal.entity";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
+import { Request, Response } from "express";
 
 class LocalService {
-  public async cadastrarLocalComImagens(dados: any): Promise<Local> {
+  localService: any;
+public async cadastrarLocalComImagens(dados: any): Promise<Local> {
     const transaction = await sequelize.transaction();
     try {
-      const dadosParaCriacao = {
-        nomeLocal: dados.nomeLocal,
-        categoria: dados.categoria,
-        nomeResponsavel: dados.nome_responsavel || dados.nomeResponsavel,
-        cpfResponsavel: dados.cpf_responsavel || dados.cpfResponsavel,
-        contatoLocal: dados.contatoLocal,
-        endereco: dados.endereco,
-        descricao: dados.descricao,
-        tagsInvisiveis: dados.tagsInvisiveis,
-        instagram: dados.instagram,
-        areasAtuacao: dados.areasAtuacao,
-        latitude: dados.latitude ? parseFloat(dados.latitude) : null,
-        longitude: dados.longitude ? parseFloat(dados.longitude) : null,
-        ativo: false,
-        status: StatusLocal.PENDENTE_APROVACAO,
-      };
+const dadosParaCriacao = {
+  nomeLocal: String(dados.nomeLocal),
+  categoria: String(dados.categoria),
+  nomeResponsavel: String(dados.nomeResponsavel),
+  cpfResponsavel: String(dados.cpfResponsavel),
+  emailResponsavel: String(dados.emailResponsavel || dados.emailContato),
+  contatoResponsavel: String(dados.contatoResponsavel),
+  contatoLocal: String(dados.contatoLocal),
+  
+  endereco: String(dados.endereco),
+  descricao: String(dados.descricao),
+  instagram: String(dados.instagram),
+  latitude: dados.latitude ? parseFloat(String(dados.latitude)) : null,
+  longitude: dados.longitude ? parseFloat(String(dados.longitude)) : null,
+  logoUrl: String(dados.logoUrl),
+  alvaraFuncionamentoUrl: String(dados.alvaraFuncionamentoUrl),
+  alvaraVigilanciaUrl: String(dados.alvaraVigilanciaUrl),
+  ativo: false,
+  status: StatusLocal.PENDENTE_APROVACAO,
+};
 
-      const local = await Local.create(dadosParaCriacao, {
-        transaction,
-      });
+      const local = await Local.create(dadosParaCriacao, { transaction });
 
-      if (dados.produtos && dados.produtos.length > 0) {
-        const imagens = dados.produtos.map((url: string) => ({
+      // Galeria de imagens
+      if (dados.imagens && dados.imagens.length > 0) {
+        const imagens = dados.imagens.map((url: string) => ({
           url,
-          localId: local.localId,
+          local_id: local.localId, // Verifique se na sua entidade o campo é localId ou local_id
         }));
         await ImagemLocal.bulkCreate(imagens, { transaction });
       }
@@ -46,22 +51,26 @@ class LocalService {
     }
   }
 
-  public async solicitarAtualizacao(
-    id: number,
-    dadosAtualizacao: any,
-  ): Promise<Local> {
-    const local = await Local.findByPk(id);
+public solicitarAtualizacao = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const body = req.body;
+        
+        // O Multer coloca os arquivos em req.files quando usamos upload.fields()
+        const files = (req as any).files as { [fieldname: string]: Express.Multer.File[] };
 
-    if (!local) {
-      throw new Error("Local não encontrado.");
+        // Chama o service que você postou acima
+        const local = await this.localService.solicitarAtualizacao(
+            Number(id),
+            body,
+            files
+        );
+
+        res.status(200).json(local);
+    } catch (error: any) {
+        res.status(400).json({ message: error.message });
     }
-
-    local.status = StatusLocal.PENDENTE_ATUALIZACAO;
-    local.dados_atualizacao = dadosAtualizacao;
-    await local.save();
-
-    return local;
-  }
+};
 
   public async solicitarExclusao(
     id: number,

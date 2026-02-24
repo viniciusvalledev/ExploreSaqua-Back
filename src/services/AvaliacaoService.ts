@@ -88,13 +88,13 @@ class AvaliacaoService {
           : "um novo comentário";
         const notaTexto = notaFinal ? `(Nota: ${notaFinal}/5)` : "";
 
-        const subject = `[MeideSaquá] Novo Comentário no seu local: ${local.nomeFantasia}`;
+        const subject = `[MeideSaquá] Novo Comentário no seu local: ${local.nomeLocal}`;
         const html = `
           <p>Olá, ${
-            local.nomeResponsavel || local.nomeFantasia
+            local.nomeResponsavel || local.nomeLocal
           },</p>
           <p>Seu local "<strong>${
-            local.nomeFantasia
+            local.nomeLocal
           }</strong>" recebeu ${eUmaResposta} na plataforma MeideSaquá.</p>
           <br>
           <p><strong>Usuário:</strong> ${usuario.username}</p>
@@ -108,7 +108,7 @@ class AvaliacaoService {
         `;
 
         await EmailService.sendGenericEmail({
-          to: local.emailLocal,
+          to: local.emailLocal as unknown as string,
           subject: subject,
           html: html,
         });

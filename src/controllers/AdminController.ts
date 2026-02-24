@@ -10,6 +10,13 @@ import LocalService from "../services/LocalService";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
 import ContadorVisualizacao from "../entities/ContadorVisualizacao.entity";
+import adminService from "../services/AdminService";
+
+export const aprovarAtualizacao = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const local = await adminService.aprovarAtualizacao(Number(id));
+    res.json(local);
+}
 
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;

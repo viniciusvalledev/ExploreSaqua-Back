@@ -47,19 +47,21 @@ router.post(
   "/",
   upload.fields([
     { name: "logo", maxCount: 1 },
-    { name: "produtos", maxCount: 5 },
-    { name: "ccmei", maxCount: 1 },
+    { name: "imagens", maxCount: 4 },             
+    { name: "vigilancia_sanitaria", maxCount: 1 }, 
+    { name: "alvara_funcionamento", maxCount: 1 }  
   ]),
   compressImages,
   LocalController.cadastrar,
 );
 
 router.put(
-  "/solicitar-atualizacao",
+  "/:id/solicitar-atualizacao",
   upload.fields([
     { name: "logo", maxCount: 1 },
-    { name: "produtos", maxCount: 5 },
-    { name: "ccmei", maxCount: 1 },
+    { name: "imagens", maxCount: 4 },
+    { name: "vigilancia_sanitaria", maxCount: 1 }, // Adicionado
+    { name: "alvara_funcionamento", maxCount: 1 }, // Adicionado
   ]),
   compressImages,
   LocalController.solicitarAtualizacao,
@@ -67,7 +69,7 @@ router.put(
 
 router.post(
   "/solicitar-exclusao",
-  upload.fields([{ name: "ccmei", maxCount: 1 }]),
+  upload.fields([{ name: "alvara_funcionamento", maxCount: 1 }]),
   LocalController.solicitarExclusao,
 );
 
