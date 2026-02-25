@@ -64,7 +64,7 @@ class LocalController {
     const alvaraFuncPath = await moveFile(arquivos["alvara_funcionamento"]?.[0]);
     const vigilanciaPath = await moveFile(arquivos["vigilancia_sanitaria"]?.[0]);
 
-    const galleryFiles = arquivos["imagens"] || arquivos["produtos"] || [];
+    const galleryFiles = arquivos["imagens"] || arquivos["produtos"] || arquivos["produtosImg"] || arquivos["localImg"] || [];
     const imagensPaths: string[] = [];
     for (const file of galleryFiles) {
       const newPath = await moveFile(file);

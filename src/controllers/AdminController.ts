@@ -61,7 +61,9 @@ export class AdminController {
     try {
       const includeOptions = {
         model: ImagemLocal,
-        as: "produtosImg",
+        // É importante que este "as" seja IGUAL ao que está configurado
+        // no arquivo de associação das tabelas (Local.hasMany(ImagemLocal...))
+        as: "localImg", 
         attributes: ["url"],
       };
 
@@ -78,7 +80,17 @@ export class AdminController {
         include: [includeOptions],
       });
 
-      return res.json({ cadastros, atualizacoes, exclusoes });
+      // NOVIDADE: Adiciona as URLs de imagens que vêm do "dados_atualizacao"
+      // para que a aba "Atualizações" também mostre o portfólio novo.
+      const formatarAtualizacoes = atualizacoes.map(local => {
+        const localData = local.toJSON() as any;
+        if (localData.dados_atualizacao && localData.dados_atualizacao.imagens) {
+           localData.localImg = localData.dados_atualizacao.imagens.map((url: string) => ({ url }));
+        }
+        return localData;
+      });
+
+      return res.json({ cadastros, atualizacoes: formatarAtualizacoes, exclusoes });
     } catch (error) {
       console.error(error);
       return res
@@ -96,7 +108,7 @@ export class AdminController {
 
       const local = await Local.findByPk(id, {
         transaction,
-        include: [{ model: ImagemLocal, as: "produtosImg" }],
+        include: [{ model: ImagemLocal, as: "localImg" }],
       });
       
       if (!local) {
@@ -317,7 +329,7 @@ export class AdminController {
     try {
       const local = await Local.findByPk(id, {
         transaction,
-        include: [{ model: ImagemLocal, as: "produtosImg" }],
+        include: [{ model: ImagemLocal, as: "localImg" }],
       });
 
       if (!local) {
@@ -526,7 +538,7 @@ export class AdminController {
     try {
       const local = await Local.findByPk(id, {
         transaction,
-        include: [{ model: ImagemLocal, as: "produtosImg" }],
+        include: [{ model: ImagemLocal, as: "localImg" }],
       });
 
       if (!local) {

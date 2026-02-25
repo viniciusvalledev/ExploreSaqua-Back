@@ -23,15 +23,15 @@ Avaliacao.belongsTo(Local, {
 // Estabelecimento <-> ImagemProduto
 Local.hasMany(ImagemLocal, {
   foreignKey: "localId",
-  as: "produtosImg",
+  as: "localImg",
 });
-ImagemLocal.belongsTo(Local, { foreignKey: "estabelecimentoId" });
+ImagemLocal.belongsTo(Local, { foreignKey: "localId" });
 
 // --- ADICIONE ESTE BLOCO DE VOLTA ---
 // Avaliação <-> Avaliação (para respostas)
 // Um comentário PAI pode ter várias RESPOSTAS
 Avaliacao.hasMany(Avaliacao, {
-  foreignKey: "parentId", // <-- Deve bater com o 'field' 'parent_id' na entidade
+  foreignKey: "parentId", 
   as: "respostas",
   onDelete: "CASCADE",
 });
@@ -41,7 +41,7 @@ Avaliacao.belongsTo(Avaliacao, {
   foreignKey: "parentId",
   as: "pai",
 });
-// --- FIM DA ADIÇÃO ---
+
 
 export {
   Usuario,

@@ -20,7 +20,7 @@ import router from "./routes/admin.routes";
 const app = express();
 
 // Ajuste para pegar a pasta uploads na raiz do projeto
-const uploadsPath = path.resolve(__dirname, "uploads");
+const uploadsPath = path.resolve(__dirname, "..",  "uploads");
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
