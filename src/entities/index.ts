@@ -23,9 +23,9 @@ Avaliacao.belongsTo(Local, {
 // Estabelecimento <-> ImagemProduto
 Local.hasMany(ImagemLocal, {
   foreignKey: "localId",
-  as: "localImg",
+  as: "locaisImg",
 });
-ImagemLocal.belongsTo(Local, { foreignKey: "localId" });
+ImagemLocal.belongsTo(Local, { foreignKey: "localId", as: "local" });
 
 // --- ADICIONE ESTE BLOCO DE VOLTA ---
 // Avaliação <-> Avaliação (para respostas)

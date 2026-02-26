@@ -63,7 +63,7 @@ export class AdminController {
         model: ImagemLocal,
         // É importante que este "as" seja IGUAL ao que está configurado
         // no arquivo de associação das tabelas (Local.hasMany(ImagemLocal...))
-        as: "localImg", 
+        as: "locaisImg", 
         attributes: ["url"],
       };
 
@@ -80,17 +80,45 @@ export class AdminController {
         include: [includeOptions],
       });
 
+      // Função utilitária para deduplicar imagens por URL
+      const dedupeByUrl = (imgs: Array<{ url: string }> | undefined) => {
+        if (!imgs || !Array.isArray(imgs)) return [];
+        const seen = new Set<string>();
+        const unique: Array<{ url: string }> = [];
+        for (const im of imgs) {
+          if (!im || !im.url) continue;
+          if (!seen.has(im.url)) {
+            seen.add(im.url);
+            unique.push(im);
+          }
+        }
+        return unique;
+      };
+
       // NOVIDADE: Adiciona as URLs de imagens que vêm do "dados_atualizacao"
       // para que a aba "Atualizações" também mostre o portfólio novo.
       const formatarAtualizacoes = atualizacoes.map(local => {
         const localData = local.toJSON() as any;
+        // Se o pedido de atualização trouxe novas imagens, use-as (substitui o include)
         if (localData.dados_atualizacao && localData.dados_atualizacao.imagens) {
-           localData.localImg = localData.dados_atualizacao.imagens.map((url: string) => ({ url }));
+           localData.locaisImg = localData.dados_atualizacao.imagens.map((url: string) => ({ url }));
         }
+        // Caso contrário, dedupe as imagens trazidas pelo include
+        localData.locaisImg = dedupeByUrl(localData.locaisImg);
         return localData;
       });
 
-      return res.json({ cadastros, atualizacoes: formatarAtualizacoes, exclusoes });
+      // Deduplica imagens em cadastros e exclusoes também
+      const formatarLista = (lista: any[]) => lista.map((local: any) => {
+        const localData = local.toJSON ? local.toJSON() : local;
+        localData.locaisImg = dedupeByUrl(localData.locaisImg);
+        return localData;
+      });
+      
+      const cadastrosFormatados = formatarLista(cadastros);
+      const exclusoesFormatadas = formatarLista(exclusoes);
+
+      return res.json({ cadastros: cadastrosFormatados, atualizacoes: formatarAtualizacoes, exclusoes: exclusoesFormatadas });
     } catch (error) {
       console.error(error);
       return res
@@ -108,7 +136,7 @@ export class AdminController {
 
       const local = await Local.findByPk(id, {
         transaction,
-        include: [{ model: ImagemLocal, as: "localImg" }],
+        include: [{ model: ImagemLocal, as: "locaisImg" }],
       });
       
       if (!local) {
@@ -256,7 +284,57 @@ export class AdminController {
           break;
 
         case StatusLocal.PENDENTE_EXCLUSAO:
-          // TODO: Adicionar lógica para deletar arquivos (logo, imagens) ANTES do destroy
+          // Deleta arquivos associados (logo + imagens) antes de remover o local
+          try {
+            // função para sanitizar nome de pasta (mesma lógica usada no upload)
+            const sanitize = (name: string) => (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+
+            // Deleta logo se existir
+            const logoUrl = (local as any).logoUrl || (local as any).logo;
+            if (logoUrl) {
+              try {
+                const filePath = path.join(__dirname, "..", "..", logoUrl);
+                await fs.unlink(filePath);
+                console.log(`Logo deletada: ${logoUrl}`);
+              } catch (err) {
+                console.warn(`Falha ao deletar logo: ${logoUrl}`, err);
+              }
+            }
+
+            // Deleta todas as imagens registradas em ImagemLocal
+            const imagensAntigas = await ImagemLocal.findAll({ where: { localId: local.localId }, transaction });
+            for (const imagem of imagensAntigas) {
+              try {
+                const filePath = path.join(__dirname, "..", "..", imagem.url);
+                await fs.unlink(filePath);
+                console.log(`Imagem deletada: ${imagem.url}`);
+              } catch (err) {
+                console.warn(`Falha ao deletar imagem: ${imagem.url}`, err);
+              }
+            }
+
+            // Remove registros de imagens no banco
+            await ImagemLocal.destroy({ where: { localId: local.localId }, transaction });
+
+            // Remove pasta de uploads do local (se existir)
+            try {
+              const pasta = path.join(
+                __dirname,
+                "..",
+                "..",
+                "uploads",
+                sanitize(local.categoria || "geral"),
+                sanitize(local.nomeLocal || `local_${local.localId}`)
+              );
+              await fs.rm(pasta, { recursive: true, force: true });
+              console.log(`Pasta de uploads deletada: ${pasta}`);
+            } catch (err) {
+              console.warn("Falha ao deletar pasta de uploads:", err);
+            }
+          } catch (err) {
+            console.error("Erro ao limpar arquivos antes de excluir local:", err);
+          }
+
           emailInfo = {
             subject: "Seu local foi removido da plataforma MeideSaquá",
             html: `
@@ -269,8 +347,8 @@ export class AdminController {
             `,
           };
           await local.destroy({ transaction });
-          responseMessage = "local excluído com sucesso.";
-          break;
+           responseMessage = "local excluído com sucesso.";
+           break;
       }
 
       await transaction.commit();
@@ -329,7 +407,7 @@ export class AdminController {
     try {
       const local = await Local.findByPk(id, {
         transaction,
-        include: [{ model: ImagemLocal, as: "localImg" }],
+        include: [{ model: ImagemLocal, as: "locaisImg" }],
       });
 
       if (!local) {
@@ -538,7 +616,7 @@ export class AdminController {
     try {
       const local = await Local.findByPk(id, {
         transaction,
-        include: [{ model: ImagemLocal, as: "localImg" }],
+        include: [{ model: ImagemLocal, as: "locaisImg" }],
       });
 
       if (!local) {
@@ -646,55 +724,45 @@ export class AdminController {
           try {
             const filePath = path.join(__dirname, "..", "..", imagem.url);
             await fs.unlink(filePath);
-            console.log(`Imagem de portfólio deletada: ${imagem.url}`);
           } catch (err) {
-            console.error(
-              `AVISO: Falha ao deletar imagem de portfólio: ${imagem.url}`,
-              err
-            );
+            // ignora
           }
         }
 
         await ImagemLocal.destroy({
-          where: { id: imagensParaDeletar.map((img) => img.id) },
+          where: {
+            id: imagensParaDeletar.map((img) => img.id),
+          },
           transaction,
         });
       }
 
-      const updatePayload: any = {
-        ...adminEditedData,
-      };
+      delete adminEditedData.urlsParaExcluir;
 
-      if (
-        statusOriginal === StatusLocal.PENDENTE_APROVACAO ||
+      await local.update(
+        {
+          ...adminEditedData,
+          status: StatusLocal.ATIVO,
+          ativo: true,
+          dados_atualizacao: null,
+        },
+        { transaction }
+      );
+
+      if (statusOriginal === StatusLocal.PENDENTE_APROVACAO) {
+        emailInfo = {
+          subject: "Seu cadastro no MeideSaquá foi Aprovado!",
+          html: `<h1>Olá, ${local.nomeResponsavel}!</h1> <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeLocal}</strong>, foi aprovado (com algumas edições do administrador) e já está visível na nossa plataforma!</p><p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá.</strong></p>`,
+        };
+      } else if (
         statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO
       ) {
-        updatePayload.status = StatusLocal.ATIVO;
-        updatePayload.ativo = true;
-        updatePayload.dados_atualizacao = null;
-
-        if (statusOriginal === StatusLocal.PENDENTE_APROVACAO) {
-          emailInfo = {
-            subject: "Seu cadastro no MeideSaquá foi Aprovado!",
-            html: `<h1>Olá, ${local.nomeResponsavel}!</h1> <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeLocal}</strong>, foi aprovado (com algumas edições do administrador) e já está visível na nossa plataforma!</p><p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá.</strong></p>`,
-          };
-        } else {
-          emailInfo = {
-            subject:
-              "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
-            html: `<h1>Olá, ${local.nomeResponsavel}!</h1><p>A sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> foi aprovada (com algumas edições do administrador).</p><p>As novas informações já estão visíveis para todos na plataforma.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
-          };
-        }
+        emailInfo = {
+          subject: "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
+          html: `<h1>Olá, ${local.nomeResponsavel}!</h1><p>A sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> foi aprovada (com algumas edições do administrador).</p><p>As novas informações já estão visíveis para todos na plataforma.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
+        };
       }
 
-      delete updatePayload.localId;
-      delete updatePayload.urlsParaExcluir;
-      
-      if ("dados_atualizacao" in updatePayload) {
-        updatePayload.dados_atualizacao = null;
-      }
-
-      await local.update(updatePayload, { transaction });
       await transaction.commit();
 
       if (emailInfo && local.contatoLocal) {
@@ -704,9 +772,6 @@ export class AdminController {
             subject: emailInfo.subject,
             html: emailInfo.html,
           });
-          console.log(
-            `Email de aprovação/atualização enviado para ${local.contatoLocal}`
-          );
         } catch (error) {
           console.error(
             `Falha ao enviar email de notificação para ${local.contatoLocal}:`,
@@ -717,15 +782,16 @@ export class AdminController {
 
       return res
         .status(200)
-        .json({ message: "Local atualizado com sucesso." });
+        .json({ message: "Local editado e aprovado com sucesso." });
     } catch (error) {
       await transaction.rollback();
-      console.error("ERRO DURANTE A ATUALIZAÇÃO ADMIN (UNIFICADA):", error);
+      console.error("ERRO DURANTE A EDIÇÃO E APROVAÇÃO:", error);
       return res
         .status(500)
-        .json({ message: "Erro ao atualizar o local." });
+        .json({ message: "Erro ao editar e aprovar a solicitação." });
     }
   }
+
 
   static adminDeleteLocal = async (
     req: Request,

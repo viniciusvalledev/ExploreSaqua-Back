@@ -5,6 +5,7 @@ import ImagemLocal from "../entities/ImagemLocal.entity";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
 import { Request, Response } from "express";
+import ProfanityFilter from "../utils/ProfanityFilter";
 
 class LocalService {
   localService: any;
@@ -32,13 +33,34 @@ const dadosParaCriacao = {
   status: StatusLocal.PENDENTE_APROVACAO,
 };
 
+      // Validação de conteúdo: verificar se algum campo contém palavrões
+      const camposParaVerificar = ["nomeLocal", "descricao", "nomeResponsavel", "categoria", "endereco"];
+      for (const campo of camposParaVerificar) {
+        const valor = (dadosParaCriacao as any)[campo];
+        if (typeof valor === "string" && ProfanityFilter.contemPalavrao(valor)) {
+          throw new Error(`O campo '${campo}' contém palavras proibidas.`);
+        }
+      }
+
+      // Verifica se já existe um local com o mesmo nome e status diferente de REJEITADO
+      const localExistente = await Local.findOne({
+        where: {
+          nomeLocal: dadosParaCriacao.nomeLocal,
+          status: { [Op.ne]: StatusLocal.REJEITADO },
+        },
+      });
+
+      if (localExistente) {
+        throw new Error("Já existe um local cadastrado com esse nome.");
+      }
+
       const local = await Local.create(dadosParaCriacao, { transaction });
 
       // Galeria de imagens
       if (dados.imagens && dados.imagens.length > 0) {
         const imagens = dados.imagens.map((url: string) => ({
           url,
-          local_id: local.localId, // Verifique se na sua entidade o campo é localId ou local_id
+          localId: local.localId,
         }));
         await ImagemLocal.bulkCreate(imagens, { transaction });
       }
@@ -95,7 +117,7 @@ public solicitarAtualizacao = async (p0: number, req: Request, res: Response): P
       include: [
         {
           model: ImagemLocal,
-          as: "produtosImg",
+          as: "locaisImg",
           attributes: ["url"],
         },
       ],
@@ -111,7 +133,7 @@ public solicitarAtualizacao = async (p0: number, req: Request, res: Response): P
       include: [
         {
           model: ImagemLocal,
-          as: "produtosImg",
+          as: "locaisImg",
           attributes: ["url"],
         },
       ],
@@ -129,7 +151,7 @@ public solicitarAtualizacao = async (p0: number, req: Request, res: Response): P
       include: [
         {
           model: ImagemLocal,
-          as: "produtosImg",
+          as: "locaisImg",
           attributes: ["url"],
         },
       ],
@@ -185,7 +207,7 @@ public solicitarAtualizacao = async (p0: number, req: Request, res: Response): P
       });
 
       const localJSON = local.toJSON();
-      (localJSON as any).produtosImg = imagens;
+      (localJSON as any).locaisImg = imagens;
       (localJSON as any).avaliacoes = avaliacoes;
 
       if (avaliacoes && avaliacoes.length > 0) {
@@ -241,7 +263,7 @@ public solicitarAtualizacao = async (p0: number, req: Request, res: Response): P
       include: [
         {
           model: ImagemLocal,
-          as: "produtosImg",
+          as: "locaisImg",
           attributes: ["url"],
         },
       ],

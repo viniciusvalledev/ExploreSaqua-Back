@@ -47,7 +47,7 @@ const PALAVRAS_PROIBIDAS: string[] = [
     "idiotice", "imbecil", "iscroto", "ladrao", "lambe", "lesbica", "lixo", "macaca",
     "macaco", "maconha", "masturba", "masturbacao", "merdinha", "mijo", "mocreia",
     "mongol", "nadegas", "nojenta", "nojento", "otaria", "paspalhao", "pemba", "penis",
-    "pentelha", "pentelho", "peru", "picao", "pila", "pinto", "pintudo", "piranha",
+    "pentelha", "pentelho", "peru", "picao", "pila", "pintudo", "piranha",
     "piru", "porno", "prr", "prega", "prostituta", "prostituto", "punheteiro",
     "pustula", "putaquepariu", "puto", "puxasaco", "rabo", "rabudo", "racha",
     "retardada", "ridicula", "ridiculo", "rola", "rosca", "sapatao", "tarado",
@@ -95,4 +95,4 @@ class ProfanityFilter {
     }
 }
 
-export default new ProfanityFilter();   
+export default new ProfanityFilter();

@@ -12,14 +12,12 @@ import sequelize from "./config/database";
 const PORT = process.env.PORT || 3306;
 
 sequelize
-  .sync({ alter: true })
+  .authenticate()
   .then(() => {
-    console.log("Conexão com a base de dados estabelecida com sucesso.");
+    console.log("Conexão com a base de dados estabelecida com sucesso (authenticate).");
     app.listen(PORT, () => {
       console.log(`🚀 Servidor a rodar na porta ${PORT}`);
-      console.log(
-        `✅ A sua API está pronta! Pode aceder em http://localhost:${PORT}`,
-      );
+      console.log(`✅ A sua API está pronta! Pode aceder em http://localhost:${PORT}`);
     });
   })
   .catch((err) => {

@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 import Local from "../entities/Local.entity";
 import ContadorVisualizacao from "../entities/ContadorVisualizacao.entity";
+import ProfanityFilter from "../utils/ProfanityFilter";
 
 class LocalController {
   // CORREÇÃO: Função limpa para deletar arquivos em caso de falha
@@ -104,15 +105,26 @@ class LocalController {
     }
   };
 
-  public solicitarAtualizacao = async (req: Request, res: Response): Promise<void> => {
+  public solicitarAtualizacao = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { id } = req.params;
       const dadosAtualizacao = await this._moveFilesAndPrepareData(req);
+
+      // Validação de palavrões nos campos de atualização
+      const camposParaVerificar = ["nomeLocal", "descricao", "nomeResponsavel", "categoria", "endereco"];
+      for (const campo of camposParaVerificar) {
+        const valor = (dadosAtualizacao as any)[campo];
+        if (typeof valor === "string" && ProfanityFilter.contemPalavrao(valor)) {
+          await this._deleteUploadedFilesOnFailure(req);
+          return res.status(400).json({ message: `O campo '${campo}' contém palavras proibidas.` });
+        }
+      }
+
       const localAtualizado = await LocalService.solicitarAtualizacao(Number(id), req, dadosAtualizacao);
-      res.status(200).json(localAtualizado);
+      return res.status(200).json(localAtualizado);
     } catch (error: any) {
       await this._deleteUploadedFilesOnFailure(req);
-      res.status(400).json({ message: error.message });
+      return res.status(400).json({ message: error.message });
     }
   };
 
@@ -128,6 +140,16 @@ class LocalController {
         categoria: localExistente.categoria,
         nomeLocal: localExistente.nomeLocal,
       });
+
+      // Validação de palavrões na solicitação de exclusão
+      const camposParaVerificarExclusao = ["nomeLocal", "descricao", "nomeResponsavel", "categoria", "endereco"];
+      for (const campo of camposParaVerificarExclusao) {
+        const valor = (dadosCompletos as any)[campo];
+        if (typeof valor === "string" && ProfanityFilter.contemPalavrao(valor)) {
+          await this._deleteUploadedFilesOnFailure(req);
+          return res.status(400).json({ message: `O campo '${campo}' contém palavras proibidas.` });
+        }
+      }
 
       await LocalService.solicitarExclusao(localId, dadosCompletos);
       return res.status(200).json({ message: "Solicitação de exclusão enviada." });

@@ -30,6 +30,7 @@ class Local extends Model {
   public alvaraFuncionamentoUrl!: string | null; 
   public longitude!: number;
   public emailLocal!: Usuario | null;
+  alvaraVigilanciaUrl: any;
 }
 
 Local.init(
