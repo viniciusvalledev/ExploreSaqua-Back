@@ -3,6 +3,7 @@ import { AdminController } from "../controllers/AdminController";
 import { adminAuthMiddleware } from "../middlewares/adminAuth.middleware";
 import multer from "multer";
 
+
 const router = Router();
 const upload = multer();
 
@@ -30,7 +31,11 @@ router.post(
   adminAuthMiddleware,
   AdminController.approveRequest
 );
-router.post("/reject/:id", adminAuthMiddleware, AdminController.rejectRequest);
+router.post(
+  "/reject/:id",
+  adminAuthMiddleware,
+  AdminController.rejectRequest
+);
 
 router.get(
   "/locais-ativos",
@@ -48,7 +53,7 @@ router.patch(
 router.delete(
   "/local/:id",
   adminAuthMiddleware,
-  AdminController.adminDeleteLocal
+  AdminController.adminUpdateLocal
 );
 
 router.get(
@@ -74,5 +79,6 @@ router.get(
   adminAuthMiddleware,
   AdminController.getDashboardStats
 );
+
 
 export default router;

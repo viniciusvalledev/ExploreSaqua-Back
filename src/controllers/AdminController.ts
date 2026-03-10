@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, type NextFunction } from "express";
 import Local, { StatusLocal } from "../entities/Local.entity";
 import * as jwt from "jsonwebtoken";
 import ImagemLocal from "../entities/ImagemLocal.entity";
@@ -792,135 +792,13 @@ export class AdminController {
     }
   }
 
-
-  static adminDeleteLocal = async (
-    req: Request,
-    res: Response
-  ): Promise<Response> => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res
-          .status(400)
-          .json({ message: "ID do local inválido." });
-      }
-
-      const local = await Local.findByPk(id);
-      if (!local) {
-        return res
-          .status(404)
-          .json({ message: "Local não encontrado." });
-      }
-
-      // TODO: Adicionar lógica para deletar arquivos (logo, imagens) ANTES do destroy
-      await local.destroy();
-
-      return res.status(204).send();
-    } catch (error: any) {
-      console.error("Falha ao excluir local (admin):", error);
-      return res
-        .status(500)
-        .json({ message: "Erro interno ao excluir local." });
-    }
-  };
-
-  static async rejectRequest(req: Request, res: Response) {
-    const { id } = req.params;
-    const { motivoRejeicao } = req.body;
-    const transaction = await sequelize.transaction();
-    try {
-      const local = await Local.findByPk(id, {
-        transaction,
-      });
-      if (!local) {
-        await transaction.rollback();
-        return res
-          .status(404)
-          .json({ message: "Local não encontrado." });
-      }
-
-      let responseMessage = "Solicitação rejeitada com sucesso.";
-      let emailInfo: { subject: string; html: string } | null = null;
-      const emailParaNotificar = local.contatoLocal; // Usando o contato como via principal
-      const motivoHtml = motivoRejeicao
-        ? `<p><strong>Motivo da Rejeição:</strong> ${motivoRejeicao}</p>`
-        : "<p>Para mais detalhes, entre em contato conosco.</p>";
-
-      if (local.status === StatusLocal.PENDENTE_APROVACAO) {
-        // TODO: Adicionar lógica para deletar arquivos (logo, imagens)
-        await local.destroy({ transaction });
-        responseMessage = "Cadastro de local rejeitado e removido.";
-
-        emailInfo = {
-          subject: "Seu cadastro no MeideSaquá foi Rejeitado",
-          html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Lamentamos informar que o cadastro do local <strong>${local.nomeLocal}</strong> não foi aprovado.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
-        };
-      } else if (
-        local.status === StatusLocal.PENDENTE_ATUALIZACAO ||
-        local.status === StatusLocal.PENDENTE_EXCLUSAO
-      ) {
-        const statusAnterior = local.status;
-        local.status = StatusLocal.ATIVO;
-        local.dados_atualizacao = null;
-        await local.save({ transaction });
-
-        // TODO: Adicionar lógica para deletar arquivos pendentes de atualização
-        if (statusAnterior === StatusLocal.PENDENTE_ATUALIZACAO) {
-          emailInfo = {
-            subject:
-              "Sua solicitação de atualização no MeideSaquá foi Rejeitada",
-            html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Informamos que a sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> não foi aprovada.</p><p>Os dados anteriores foram mantidos.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
-          };
-        } else {
-          emailInfo = {
-            subject: "Sua solicitação de exclusão no MeideSaquá foi Rejeitada",
-            html: `<h1>Olá, ${local.nomeResponsavel}.</h1><p>Informamos que a sua solicitação para remover o local <strong>${local.nomeLocal}</strong> não foi aprovada.</p><p>Seu local continua ativo na plataforma.</p>${motivoHtml}<br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
-          };
-        }
-      } else {
-        await transaction.rollback();
-        return res.status(400).json({
-          message:
-            "O local não está em um estado pendente para rejeição.",
-        });
-      }
-
-      await transaction.commit();
-
-      if (emailInfo && emailParaNotificar) {
-        try {
-          await EmailService.sendGenericEmail({
-            to: emailParaNotificar,
-            subject: emailInfo.subject,
-            html: emailInfo.html,
-          });
-          console.log(
-            `Email de rejeição enviado com sucesso para ${emailParaNotificar}`
-          );
-        } catch (error) {
-          console.error(
-            `Falha ao enviar email de rejeição para ${emailParaNotificar}:`,
-            error
-          );
-        }
-      }
-
-      return res.status(200).json({ message: responseMessage });
-    } catch (error) {
-      await transaction.rollback();
-      console.error("Erro ao rejeitar a solicitação:", error);
-      return res
-        .status(500)
-        .json({ message: "Erro ao rejeitar a solicitação." });
-    }
-  }
-
   static async getAvaliacoesByLocal(req: Request, res: Response) {
     try {
       const { localId } = req.params;
+      const localIdNum = Number(localId);
 
       const local = await Local.findByPk(
-        localId,
+        localIdNum,
         {
           attributes: ["localId", "nomeLocal", "categoria"], 
         }
@@ -933,7 +811,7 @@ export class AdminController {
       }
 
       const avaliacoes = await Avaliacao.findAll({
-        where: { LocalId: localId, parent_id: null },
+        where: { localId: localIdNum, parentId: null },
         include: [
           {
             model: Usuario,
@@ -1175,6 +1053,36 @@ export class AdminController {
     } catch (error) {
       console.error("Erro dashboard:", error);
       return res.status(500).json({ message: "Erro ao buscar estatísticas." });
+    }
+  }
+
+  static async rejectRequest(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      const local = await Local.findByPk(id);
+      if (!local) return res.status(404).json({ message: "Local não encontrado." });
+
+      await adminService.rejeitarSolicitacao(Number(id));
+
+      // Tenta notificar por email se houver contato
+      if ((local as any).contatoLocal) {
+        try {
+          await EmailService.sendGenericEmail({
+            to: (local as any).contatoLocal,
+            subject: "Sua solicitação foi rejeitada",
+            html: `<p>Sua solicitação para o local <strong>${(local as any).nomeLocal}</strong> foi rejeitada.</p><p>${reason || ''}</p>`,
+          });
+        } catch (err) {
+          console.error('Falha ao enviar email de rejeição:', err);
+        }
+      }
+
+      return res.status(200).json({ message: 'Solicitação rejeitada.' });
+    } catch (error) {
+      console.error('Erro ao rejeitar a solicitação (admin):', error);
+      return res.status(500).json({ message: 'Erro ao rejeitar a solicitação.' });
     }
   }
 }
