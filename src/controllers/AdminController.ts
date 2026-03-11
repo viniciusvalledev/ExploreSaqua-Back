@@ -80,6 +80,12 @@ export class AdminController {
         include: [includeOptions],
       });
 
+      // Novidade: indicações (cadastros do tipo 'indication')
+      const indicacoes = await Local.findAll({
+        where: { tipoCadastro: "indication" },
+        include: [includeOptions],
+      });
+
       // Função utilitária para deduplicar imagens por URL
       const dedupeByUrl = (imgs: Array<{ url: string }> | undefined) => {
         if (!imgs || !Array.isArray(imgs)) return [];
@@ -117,8 +123,9 @@ export class AdminController {
       
       const cadastrosFormatados = formatarLista(cadastros);
       const exclusoesFormatadas = formatarLista(exclusoes);
+      const indicacoesFormatadas = formatarLista(indicacoes);
 
-      return res.json({ cadastros: cadastrosFormatados, atualizacoes: formatarAtualizacoes, exclusoes: exclusoesFormatadas });
+      return res.json({ cadastros: cadastrosFormatados, atualizacoes: formatarAtualizacoes, exclusoes: exclusoesFormatadas, indicacoes: indicacoesFormatadas });
     } catch (error) {
       console.error(error);
       return res

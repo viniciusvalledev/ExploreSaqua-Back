@@ -31,6 +31,12 @@ class Local extends Model {
   public longitude!: number;
   public emailLocal!: Usuario | null;
   alvaraVigilanciaUrl: any;
+
+  // Novos campos para suportar indicações (sem criar nova entidade)
+  public tipoCadastro?: string; // ex: 'indication'
+  public indicadorNome?: string;
+  public indicadorContato?: string;
+  public indicadorEmail?: string;
 }
 
 Local.init(
@@ -44,6 +50,26 @@ Local.init(
       logoUrl: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    tipoCadastro: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "tipo_cadastro",
+    },
+    indicadorNome: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "indicador_nome",
+    },
+    indicadorContato: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "indicador_contato",
+    },
+    indicadorEmail: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "indicador_email",
     },
     emailResponsavel: { 
       type: DataTypes.STRING,

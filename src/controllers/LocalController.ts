@@ -97,6 +97,15 @@ class LocalController {
   public cadastrar = async (req: Request, res: Response): Promise<Response> => {
     try {
       const dadosCompletos = await this._moveFilesAndPrepareData(req);
+
+      // Se for indicação, mapeia campos específicos vindos do FormData
+      if (dadosCompletos.tipoCadastro && String(dadosCompletos.tipoCadastro) === "indication") {
+        // Garante que campos do indicador venham como strings
+        dadosCompletos.indicadorNome = dadosCompletos.indicadorNome ? String(dadosCompletos.indicadorNome) : null;
+        dadosCompletos.indicadorContato = dadosCompletos.indicadorContato ? String(dadosCompletos.indicadorContato) : null;
+        dadosCompletos.indicadorEmail = dadosCompletos.indicadorEmail ? String(dadosCompletos.indicadorEmail) : null;
+      }
+
       const novoLocal = await LocalService.cadastrarLocalComImagens(dadosCompletos);
       return res.status(201).json(novoLocal);
     } catch (error: any) {

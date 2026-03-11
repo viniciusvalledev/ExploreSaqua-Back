@@ -31,6 +31,12 @@ const dadosParaCriacao = {
   alvaraVigilanciaUrl: String(dados.alvaraVigilanciaUrl),
   ativo: false,
   status: StatusLocal.PENDENTE_APROVACAO,
+
+  // Campos opcionais para indicar que este cadastro é uma indicação
+  tipoCadastro: dados.tipoCadastro ? String(dados.tipoCadastro) : undefined,
+  indicadorNome: dados.indicadorNome ? String(dados.indicadorNome) : undefined,
+  indicadorContato: dados.indicadorContato ? String(dados.indicadorContato) : undefined,
+  indicadorEmail: dados.indicadorEmail ? String(dados.indicadorEmail) : undefined,
 };
 
       // Validação de conteúdo: verificar se algum campo contém palavrões
