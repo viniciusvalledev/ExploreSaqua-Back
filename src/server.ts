@@ -11,15 +11,22 @@ import sequelize from "./config/database";
 
 const PORT = process.env.PORT || 3306;
 
-sequelize
-  .authenticate()
-  .then(() => {
+(async () => {
+  try {
+    await sequelize.authenticate();
     console.log("Conexão com a base de dados estabelecida com sucesso (authenticate).");
+
+    // SINCRONIZAÇÃO AUTOMÁTICA: sincroniza todos os modelos com o banco
+    // ALTER: faz alterações necessárias sem dropar tabelas (útil quando não quer migrations)
+    await sequelize.sync({ alter: true });
+    console.log("✅ Banco de dados sincronizado (sequelize.sync alter: true)");
+
     app.listen(PORT, () => {
       console.log(`🚀 Servidor a rodar na porta ${PORT}`);
       console.log(`✅ A sua API está pronta! Pode aceder em http://localhost:${PORT}`);
     });
-  })
-  .catch((err) => {
-    console.error("❌ Não foi possível conectar à base de dados:", err);
-  });
+  } catch (err) {
+    console.error("❌ Não foi possível conectar ou sincronizar a base de dados:", err);
+    process.exit(1);
+  }
+})();
