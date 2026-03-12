@@ -5,6 +5,7 @@ import type Usuario from "./Usuario.entity";
 export enum StatusLocal {
   PENDENTE_APROVACAO = "pendente_aprovacao",
   ATIVO = "ativo",
+  INATIVO = "inativo",
   PENDENTE_ATUALIZACAO = "pendente_atualizacao",
   PENDENTE_EXCLUSAO = "pendente_exclusao",
   REJEITADO = "rejeitado",

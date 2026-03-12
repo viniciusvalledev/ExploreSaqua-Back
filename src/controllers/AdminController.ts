@@ -591,8 +591,20 @@ export class AdminController {
 
   static async getAllActiveLocal(req: Request, res: Response) {
     try {
-      const local = await LocalService.listarTodos();
-      return res.json(local);
+      // Para o painel de Admin queremos listar todos os locais (ativos e desativados)
+      // para que o administrador possa ver e controlar locais desativados.
+      const locais = await Local.findAll({
+        include: [
+          {
+            model: ImagemLocal,
+            as: "locaisImg",
+            attributes: ["url"],
+          },
+        ],
+        order: [["localId", "ASC"]],
+      });
+
+      return res.json(locais);
     } catch (error) {
       console.error(error);
       return res
@@ -600,6 +612,53 @@ export class AdminController {
         .json({ message: "Erro ao buscar local ativos." });
     }
   }
+
+  // Rota usada pelo painel Admin para ativar/desativar um local (fica invisível ao público quando desativado)
+  static async toggleLocalAtivo(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      // Proteção: req.body pode ser undefined (ex.: requisição sem Content-Type)
+      // Tentamos extrair 'ativo' do body primeiro, depois da query string.
+      let ativo: any = undefined;
+      if (req.body && typeof req.body === 'object') {
+        ativo = (req.body as any).ativo;
+      }
+      if (typeof ativo === 'undefined' && typeof req.query !== 'undefined') {
+        // aceitar /admin/local/:id/ativo?ativo=false
+        const q = (req.query as any).ativo;
+        if (typeof q !== 'undefined') {
+          if (q === 'true' || q === '1' || q === 1 || q === true) ativo = true;
+          else if (q === 'false' || q === '0' || q === 0 || q === false) ativo = false;
+          else ativo = q; // manter valor para validação abaixo
+        }
+      }
+
+      // Converter strings 'true'/'false' vindas do body
+      if (typeof ativo === 'string') {
+        if (ativo.toLowerCase() === 'true') ativo = true;
+        else if (ativo.toLowerCase() === 'false') ativo = false;
+      }
+
+      // Se 'ativo' não foi enviado, buscamos o local e INVERTIMOS o valor atual (toggle)
+      let finalAtivo: boolean;
+      if (typeof ativo === 'boolean') {
+        finalAtivo = ativo;
+      } else {
+        const localAtual = await Local.findByPk(Number(id));
+        if (!localAtual) return res.status(404).json({ message: 'Local não encontrado.' });
+        // garante boolean
+        const atual = !!(localAtual as any).ativo;
+        finalAtivo = !atual;
+      }
+
+      const local = await LocalService.alterarStatusAtivo(Number(id), finalAtivo);
+       return res.status(200).json(local);
+     } catch (error: any) {
+       console.error("Erro ao alterar status de ativo pelo Admin:", error);
+       return res.status(500).json({ message: error.message || "Erro interno." });
+     }
+   }
 
   static async adminUpdateLocal(req: Request, res: Response) {
     const { id } = req.params;

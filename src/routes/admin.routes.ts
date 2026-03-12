@@ -56,6 +56,12 @@ router.delete(
   AdminController.adminUpdateLocal
 );
 
+router.patch(
+  "/local/:id/ativo",
+  adminAuthMiddleware,
+  AdminController.toggleLocalAtivo
+);
+
 router.get(
   "/avaliacoes/local/:localId",
   adminAuthMiddleware,
