@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
 
 interface EmailOptions {
   to: string;
@@ -21,50 +23,77 @@ class EmailService {
     });
   }
 
+  private getHtmlTemplate(
+    templateName: string,
+    replacements: Record<string, string>,
+  ): string {
+    const filePath = path.join(
+      __dirname,
+      `../templates/emails/${templateName}.html`,
+    );
+    let htmlContent = fs.readFileSync(filePath, "utf-8");
+
+    for (const [key, value] of Object.entries(replacements)) {
+      htmlContent = htmlContent.split(`[${key}]`).join(value);
+    }
+
+    return htmlContent;
+  }
+
   public async sendConfirmationEmail(to: string, token: string): Promise<void> {
     const confirmationUrl = `https://meidesaqua.saquarema.rj.gov.br/confirmar-conta?token=${token}`;
+
+    const htmlContent = this.getHtmlTemplate("confirmacao", {
+      LINK_CONFIRMACAO: confirmationUrl,
+    });
+
     const message = {
       from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
       to: to,
       subject: "Confirmação de Cadastro - ExploreSaqua",
-      html: `Obrigado por se cadastrar! Por favor, clique no link abaixo para ativar sua conta:<br><br>
-                   <a href="${confirmationUrl}">${confirmationUrl}</a><br><br>
-                   Se você não se cadastrou em nosso site, por favor ignore este e-mail.`,
+      html: htmlContent,
     };
+
     await this.transporter.sendMail(message);
   }
 
   public async sendPasswordResetEmail(
     to: string,
-    token: string
+    token: string,
   ): Promise<void> {
     const resetUrl = `https://meidesaqua.saquarema.rj.gov.br/redefinir-senha?token=${token}`;
+
+    const htmlContent = this.getHtmlTemplate("redefinir-senha", {
+      LINK_REDEFINIR: resetUrl,
+    });
+
     const message = {
       from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
       to: to,
       subject: "Redefinição de Senha - ExploreSaqua",
-      html: `Recebemos um pedido para redefinir a senha da sua conta.<br><br>
-                   Por favor, clique no link abaixo para criar uma nova senha:<br>
-                   <a href="${resetUrl}">${resetUrl}</a><br><br>
-                   Se você não solicitou esta alteração, por favor ignore este e-mail.`,
+      html: htmlContent,
     };
+
     await this.transporter.sendMail(message);
   }
 
   public async sendEmailChangeConfirmationEmail(
     to: string,
-    token: string
+    token: string,
   ): Promise<void> {
     const confirmationUrl = `https://meidesaqua.saquarema.rj.gov.br/confirmar-novo-email?token=${token}`;
+
+    const htmlContent = this.getHtmlTemplate("alterar-email", {
+      LINK_ALTERAR_EMAIL: confirmationUrl,
+    });
+
     const message = {
       from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
       to: to,
       subject: "Confirmação de Alteração de E-mail - ExploreSaqua",
-      html: `Recebemos um pedido para alterar o e-mail da sua conta para este endereço.<br><br>
-                   Por favor, clique no link abaixo para confirmar a alteração:<br>
-                   <a href="${confirmationUrl}">${confirmationUrl}</a><br><br>
-                   Se você não solicitou esta alteração, por favor ignore este e-mail.`,
+      html: htmlContent,
     };
+
     await this.transporter.sendMail(message);
   }
 
@@ -76,6 +105,87 @@ class EmailService {
       html: options.html,
     };
     await this.transporter.sendMail(message);
+  }
+
+  public async sendLocalApprovedEmail(
+    to: string,
+    nomeResponsavel: string,
+    nomeLocal: string,
+    adminEdited: boolean = false,
+  ): Promise<void> {
+    const htmlContent = this.getHtmlTemplate("local-aprovado", {
+      NOME_RESPONSAVEL: nomeResponsavel,
+      NOME_LOCAL: nomeLocal,
+      AVISO_EDICAO: adminEdited
+        ? " (com algumas edições do administrador)"
+        : "",
+    });
+
+    await this.transporter.sendMail({
+      from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
+      to,
+      subject: "Seu cadastro no ExploreSaqua foi Aprovado!",
+      html: htmlContent,
+    });
+  }
+
+  public async sendLocalUpdateApprovedEmail(
+    to: string,
+    nomeResponsavel: string,
+    nomeLocal: string,
+    adminEdited: boolean = false,
+  ): Promise<void> {
+    const htmlContent = this.getHtmlTemplate("local-atualizado", {
+      NOME_RESPONSAVEL: nomeResponsavel,
+      NOME_LOCAL: nomeLocal,
+      AVISO_EDICAO: adminEdited
+        ? " (com algumas edições do administrador)"
+        : "",
+    });
+
+    await this.transporter.sendMail({
+      from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
+      to,
+      subject: "Sua solicitação de atualização no ExploreSaqua foi Aprovada!",
+      html: htmlContent,
+    });
+  }
+
+  public async sendLocalDeletedEmail(
+    to: string,
+    nomeResponsavel: string,
+    nomeLocal: string,
+  ): Promise<void> {
+    const htmlContent = this.getHtmlTemplate("local-excluido", {
+      NOME_RESPONSAVEL: nomeResponsavel,
+      NOME_LOCAL: nomeLocal,
+    });
+
+    await this.transporter.sendMail({
+      from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
+      to,
+      subject: "Seu local foi removido da plataforma ExploreSaqua",
+      html: htmlContent,
+    });
+  }
+
+  public async sendLocalRejectedEmail(
+    to: string,
+    nomeLocal: string,
+    motivo: string | undefined,
+  ): Promise<void> {
+    const htmlContent = this.getHtmlTemplate("local-rejeitado", {
+      NOME_LOCAL: nomeLocal,
+      MOTIVO_REJEICAO:
+        motivo || "Para mais detalhes, por favor, entre em contato conosco.",
+    });
+
+    await this.transporter.sendMail({
+      from: `"ExploreSaqua" <${process.env.MAIL_USER}>`,
+      to,
+      subject: "Sua solicitação no ExploreSaqua foi Rejeitada",
+      html: htmlContent,
+    });
   }
 }
 
