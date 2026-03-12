@@ -17,7 +17,7 @@ ContadorVisualizacao.init(
     identificador: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
+      // unique: true, // removido para evitar criação automática de índices UNIQUE que podem exceder o limite do MySQL
     },
     visualizacoes: {
       type: DataTypes.INTEGER,
