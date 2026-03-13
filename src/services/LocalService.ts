@@ -251,7 +251,8 @@ public solicitarAtualizacao = async (p0: number, req: Request, res: Response): P
     local.ativo = ativo;
 
     if (ativo === false) {
-      local.status = StatusLocal.REJEITADO;
+      // quando admin desativa manualmente, marque como INATIVO (não REJEITADO)
+      local.status = StatusLocal.INATIVO;
     } else {
       local.status = StatusLocal.ATIVO;
     }
@@ -291,6 +292,21 @@ public solicitarAtualizacao = async (p0: number, req: Request, res: Response): P
     });
 
     return { cadastros, atualizacoes, exclusoes };
+  }
+
+  public async listarInativos(): Promise<Local[]> {
+    return Local.findAll({
+      where: {
+        status: StatusLocal.INATIVO,
+      },
+      include: [
+        {
+          model: ImagemLocal,
+          as: "locaisImg",
+          attributes: ["url"],
+        },
+      ],
+    });
   }
 }
 

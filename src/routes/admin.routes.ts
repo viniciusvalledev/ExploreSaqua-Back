@@ -27,11 +27,6 @@ router.post(
   AdminController.editAndApproveRequest
 );
 router.post(
-  "/approve/:id",
-  adminAuthMiddleware,
-  AdminController.approveRequest
-);
-router.post(
   "/reject/:id",
   adminAuthMiddleware,
   AdminController.rejectRequest
@@ -41,6 +36,11 @@ router.get(
   "/locais-ativos",
   adminAuthMiddleware,
   AdminController.getAllActiveLocal
+);
+router.get(
+  "/locais-inativos",
+  adminAuthMiddleware,
+  AdminController.getInactiveLocals
 );
 
 router.patch(
@@ -53,7 +53,7 @@ router.patch(
 router.delete(
   "/local/:id",
   adminAuthMiddleware,
-  AdminController.adminUpdateLocal
+  AdminController.deleteLocal
 );
 
 router.patch(

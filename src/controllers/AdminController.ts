@@ -13,10 +13,10 @@ import ContadorVisualizacao from "../entities/ContadorVisualizacao.entity";
 import adminService from "../services/AdminService";
 
 export const aprovarAtualizacao = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const local = await adminService.aprovarAtualizacao(Number(id));
-  res.json(local);
-};
+    const { id } = req.params;
+    const local = await adminService.aprovarAtualizacao(Number(id));
+    res.json(local);
+}
 
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -26,18 +26,74 @@ if (!ADMIN_USER || !ADMIN_PASSWORD || !JWT_SECRET) {
   console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   console.error("ERRO CRÍTICO: Variáveis de ambiente do Admin não definidas.");
   console.error(
-    "Por favor, defina ADMIN_USER, ADMIN_PASSWORD, e ADMIN_JWT_SECRET",
+    "Por favor, defina ADMIN_USER, ADMIN_PASSWORD, e ADMIN_JWT_SECRET"
   );
   console.error(
-    "no seu ficheiro .env (ou .env.local) antes de iniciar o servidor.",
+    "no seu ficheiro .env (ou .env.local) antes de iniciar o servidor."
   );
   console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   throw new Error(
-    "Credenciais de administrador ou segredo JWT não configurados.",
+    "Credenciais de administrador ou segredo JWT não configurados."
   );
 }
 
 export class AdminController {
+  // Removido stub incorreto para `toggleLocalAtivo`.
+
+  // Permite que o admin exclua definitivamente um local (usando AdminService)
+  static async deleteLocal(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      await adminService.aprovarExclusao(Number(id));
+      return res.status(200).json({ message: "Local excluído com sucesso." });
+    } catch (error: any) {
+      console.error("Erro ao excluir local (admin):", error);
+      return res.status(500).json({ message: error.message || "Erro ao excluir local." });
+    }
+  }
+
+  // Rota usada pelo painel Admin para ativar/desativar um local (fica invisível ao público quando desativado)
+  static async toggleLocalAtivo(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      // Tentamos extrair 'ativo' do body primeiro, depois da query string.
+      let ativoParam: any = undefined;
+      if (req.body && typeof req.body === 'object' && Object.prototype.hasOwnProperty.call(req.body, 'ativo')) {
+        ativoParam = (req.body as any).ativo;
+      }
+
+      if (typeof ativoParam === 'undefined' && typeof req.query !== 'undefined') {
+        const q = (req.query as any).ativo;
+        if (typeof q !== 'undefined') {
+          if (q === 'true' || q === '1' || q === 1 || q === true) ativoParam = true;
+          else if (q === 'false' || q === '0' || q === 0 || q === false) ativoParam = false;
+        }
+      }
+
+      // Determina o valor final: se foi passado, usa; senão, inverte o atual.
+      let finalAtivo: boolean;
+      if (typeof ativoParam === 'boolean') {
+        finalAtivo = ativoParam;
+      } else {
+        const localAtual = await Local.findByPk(Number(id));
+        if (!localAtual) return res.status(404).json({ message: 'Local não encontrado.' });
+        const atual = !!(localAtual as any).ativo;
+        finalAtivo = !atual;
+      }
+
+      const local = await LocalService.alterarStatusAtivo(Number(id), finalAtivo);
+
+      // Para compatibilidade com o frontend, mapeamos o status para 'ativo' ou 'inativo'
+      const statusString = local.status === StatusLocal.ATIVO ? 'ativo' : 'inativo';
+
+      // RETORNO: preferimos enviar somente a string de status para que o frontend a leia
+      return res.status(200).json({ status: statusString, local });
+    } catch (error: any) {
+      console.error("Erro ao alterar status de ativo pelo Admin:", error);
+      return res.status(500).json({ message: error.message || "Erro interno." });
+    }
+  }
   static async login(req: Request, res: Response) {
     const { username, password } = req.body;
 
@@ -47,7 +103,7 @@ export class AdminController {
         JWT_SECRET as string,
         {
           expiresIn: "8h",
-        },
+        }
       );
       return res.json({ success: true, token });
     }
@@ -63,7 +119,7 @@ export class AdminController {
         model: ImagemLocal,
         // É importante que este "as" seja IGUAL ao que está configurado
         // no arquivo de associação das tabelas (Local.hasMany(ImagemLocal...))
-        as: "locaisImg",
+        as: "locaisImg", 
         attributes: ["url"],
       };
 
@@ -103,16 +159,11 @@ export class AdminController {
 
       // NOVIDADE: Adiciona as URLs de imagens que vêm do "dados_atualizacao"
       // para que a aba "Atualizações" também mostre o portfólio novo.
-      const formatarAtualizacoes = atualizacoes.map((local) => {
+      const formatarAtualizacoes = atualizacoes.map(local => {
         const localData = local.toJSON() as any;
         // Se o pedido de atualização trouxe novas imagens, use-as (substitui o include)
-        if (
-          localData.dados_atualizacao &&
-          localData.dados_atualizacao.imagens
-        ) {
-          localData.locaisImg = localData.dados_atualizacao.imagens.map(
-            (url: string) => ({ url }),
-          );
+        if (localData.dados_atualizacao && localData.dados_atualizacao.imagens) {
+           localData.locaisImg = localData.dados_atualizacao.imagens.map((url: string) => ({ url }));
         }
         // Caso contrário, dedupe as imagens trazidas pelo include
         localData.locaisImg = dedupeByUrl(localData.locaisImg);
@@ -120,23 +171,17 @@ export class AdminController {
       });
 
       // Deduplica imagens em cadastros e exclusoes também
-      const formatarLista = (lista: any[]) =>
-        lista.map((local: any) => {
-          const localData = local.toJSON ? local.toJSON() : local;
-          localData.locaisImg = dedupeByUrl(localData.locaisImg);
-          return localData;
-        });
-
+      const formatarLista = (lista: any[]) => lista.map((local: any) => {
+        const localData = local.toJSON ? local.toJSON() : local;
+        localData.locaisImg = dedupeByUrl(localData.locaisImg);
+        return localData;
+      });
+      
       const cadastrosFormatados = formatarLista(cadastros);
       const exclusoesFormatadas = formatarLista(exclusoes);
       const indicacoesFormatadas = formatarLista(indicacoes);
 
-      return res.json({
-        cadastros: cadastrosFormatados,
-        atualizacoes: formatarAtualizacoes,
-        exclusoes: exclusoesFormatadas,
-        indicacoes: indicacoesFormatadas,
-      });
+      return res.json({ cadastros: cadastrosFormatados, atualizacoes: formatarAtualizacoes, exclusoes: exclusoesFormatadas, indicacoes: indicacoesFormatadas });
     } catch (error) {
       console.error(error);
       return res
@@ -156,13 +201,15 @@ export class AdminController {
         transaction,
         include: [{ model: ImagemLocal, as: "locaisImg" }],
       });
-
+      
       if (!local) {
         await transaction.rollback();
-        return res.status(404).json({ message: "local não encontrado." });
+        return res
+          .status(404)
+          .json({ message: "local não encontrado." });
       }
-
-      let actionForEmail: "APPROVED" | "UPDATED" | "DELETED" | null = null;
+      
+      let emailInfo: { subject: string; html: string } | null = null;
 
       switch (local.status) {
         case StatusLocal.PENDENTE_APROVACAO:
@@ -170,7 +217,18 @@ export class AdminController {
           local.ativo = true;
           await local.save({ transaction });
 
-          actionForEmail = "APPROVED";
+          emailInfo = {
+            subject: "Seu cadastro no MeideSaquá foi Aprovado!",
+            html: `
+              <h1>Olá, ${local.nomeResponsavel}!</h1>
+              <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeLocal}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
+              <p>A partir de agora, clientes podem encontrar o seu negócio e deixar avaliações.</p>
+              <p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p>
+              <br>
+              <p>Atenciosamente,</p>
+              <p><strong>Equipe MeideSaquá.</strong></p>
+            `,
+          };
           break;
 
         case StatusLocal.PENDENTE_ATUALIZACAO:
@@ -204,21 +262,20 @@ export class AdminController {
 
             // --- LÓGICA DA LOGO RESTAURADA ---
             if (dadosRecebidos.logo) {
-              const logoAntigaUrl =
-                (local as any).logoUrl || (local as any).logo;
+              const logoAntigaUrl = (local as any).logoUrl || (local as any).logo;
               if (logoAntigaUrl) {
                 try {
                   const filePath = path.join(
                     __dirname,
                     "..",
                     "..",
-                    logoAntigaUrl,
+                    logoAntigaUrl
                   );
                   await fs.unlink(filePath);
                 } catch (err) {
                   console.error(
                     `AVISO: Falha ao deletar logo antiga: ${logoAntigaUrl}`,
-                    err,
+                    err
                   );
                 }
               }
@@ -244,7 +301,7 @@ export class AdminController {
                 } catch (err) {
                   console.error(
                     `AVISO: Falha ao deletar imagem antiga: ${imagem.url}`,
-                    err,
+                    err
                   );
                 }
               }
@@ -258,7 +315,7 @@ export class AdminController {
                 (url: string) => ({
                   url,
                   localId: local.localId,
-                }),
+                })
               );
               await ImagemLocal.bulkCreate(novasImagens, { transaction });
             }
@@ -275,15 +332,25 @@ export class AdminController {
             await local.save({ transaction });
           }
 
-          actionForEmail = "UPDATED";
+          emailInfo = {
+            subject:
+              "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
+            html: `
+              <h1>Olá, ${local.nomeResponsavel}!</h1>
+              <p>A sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> foi aprovada.</p>
+              <p>As novas informações já estão visíveis para todos na plataforma.</p>
+              <br>
+              <p>Atenciosamente,</p>
+              <p><strong>Equipe MeideSaquá</strong></p>
+            `,
+          };
           break;
 
         case StatusLocal.PENDENTE_EXCLUSAO:
           // Deleta arquivos associados (logo + imagens) antes de remover o local
           try {
             // função para sanitizar nome de pasta (mesma lógica usada no upload)
-            const sanitize = (name: string) =>
-              (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+            const sanitize = (name: string) => (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
             // Deleta logo se existir
             const logoUrl = (local as any).logoUrl || (local as any).logo;
@@ -298,10 +365,7 @@ export class AdminController {
             }
 
             // Deleta todas as imagens registradas em ImagemLocal
-            const imagensAntigas = await ImagemLocal.findAll({
-              where: { localId: local.localId },
-              transaction,
-            });
+            const imagensAntigas = await ImagemLocal.findAll({ where: { localId: local.localId }, transaction });
             for (const imagem of imagensAntigas) {
               try {
                 const filePath = path.join(__dirname, "..", "..", imagem.url);
@@ -313,10 +377,7 @@ export class AdminController {
             }
 
             // Remove registros de imagens no banco
-            await ImagemLocal.destroy({
-              where: { localId: local.localId },
-              transaction,
-            });
+            await ImagemLocal.destroy({ where: { localId: local.localId }, transaction });
 
             // Remove pasta de uploads do local (se existir)
             try {
@@ -326,7 +387,7 @@ export class AdminController {
                 "..",
                 "uploads",
                 sanitize(local.categoria || "geral"),
-                sanitize(local.nomeLocal || `local_${local.localId}`),
+                sanitize(local.nomeLocal || `local_${local.localId}`)
               );
               await fs.rm(pasta, { recursive: true, force: true });
               console.log(`Pasta de uploads deletada: ${pasta}`);
@@ -334,53 +395,46 @@ export class AdminController {
               console.warn("Falha ao deletar pasta de uploads:", err);
             }
           } catch (err) {
-            console.error(
-              "Erro ao limpar arquivos antes de excluir local:",
-              err,
-            );
+            console.error("Erro ao limpar arquivos antes de excluir local:", err);
           }
 
+          emailInfo = {
+            subject: "Seu local foi removido da plataforma MeideSaquá",
+            html: `
+              <h1>Olá, ${local.nomeResponsavel}.</h1>
+              <p>Informamos que a sua solicitação para remover o local <strong>${local.nomeLocal}</strong> da nossa plataforma foi concluída com sucesso.</p>
+              <p>Lamentamos a sua partida e esperamos poder colaborar com você novamente no futuro.</p>
+              <br>
+              <p>Atenciosamente,</p>
+              <p><strong>Equipe MeideSaquá</strong></p>
+            `,
+          };
           await local.destroy({ transaction });
-          responseMessage = "local excluído com sucesso.";
-          actionForEmail = "DELETED";
-          break;
+           responseMessage = "local excluído com sucesso.";
+           break;
       }
 
       await transaction.commit();
 
-      if (actionForEmail && local.contatoLocal) {
+      if (emailInfo && local.contatoLocal) {
         try {
-          if (actionForEmail === "APPROVED") {
-            await EmailService.sendLocalApprovedEmail(
-              local.contatoLocal,
-              local.nomeResponsavel,
-              local.nomeLocal,
-            );
-          } else if (actionForEmail === "UPDATED") {
-            await EmailService.sendLocalUpdateApprovedEmail(
-              local.contatoLocal,
-              local.nomeResponsavel,
-              local.nomeLocal,
-            );
-          } else if (actionForEmail === "DELETED") {
-            await EmailService.sendLocalDeletedEmail(
-              local.contatoLocal,
-              local.nomeResponsavel,
-              local.nomeLocal,
-            );
-          }
+          await EmailService.sendGenericEmail({
+            to: local.contatoLocal,
+            subject: emailInfo.subject,
+            html: emailInfo.html,
+          });
           console.log(
-            `Email de notificação enviado com sucesso para ${local.contatoLocal}`,
+            `Email de notificação enviado com sucesso para ${local.contatoLocal}`
           );
         } catch (error) {
           console.error(
             `Falha ao enviar email de notificação para ${local.contatoLocal}:`,
-            error,
+            error
           );
         }
-      } else if (actionForEmail) {
+      } else if (emailInfo) {
         console.warn(
-          `Tentativa de enviar email para local ID ${local.localId} sem contatoLocal definido.`,
+          `Tentativa de enviar email para local ID ${local.localId} sem contatoLocal definido.`
         );
       }
 
@@ -391,39 +445,6 @@ export class AdminController {
       return res
         .status(500)
         .json({ message: "Erro ao aprovar a solicitação." });
-    }
-  }
-
-  static async rejectRequest(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { reason } = req.body;
-
-      const local = await Local.findByPk(id);
-      if (!local)
-        return res.status(404).json({ message: "Local não encontrado." });
-
-      await adminService.rejeitarSolicitacao(Number(id));
-
-      // Tenta notificar por email se houver contato
-      if ((local as any).contatoLocal) {
-        try {
-          await EmailService.sendLocalRejectedEmail(
-            (local as any).contatoLocal,
-            (local as any).nomeLocal,
-            reason,
-          );
-        } catch (err) {
-          console.error("Falha ao enviar email de rejeição:", err);
-        }
-      }
-
-      return res.status(200).json({ message: "Solicitação rejeitada." });
-    } catch (error) {
-      console.error("Erro ao rejeitar a solicitação (admin):", error);
-      return res
-        .status(500)
-        .json({ message: "Erro ao rejeitar a solicitação." });
     }
   }
 
@@ -438,7 +459,7 @@ export class AdminController {
       } catch (e) {
         console.error(
           "Falha ao parsear urlsParaExcluir em editAndApproveRequest:",
-          e,
+          e
         );
         urlsParaExcluir = [];
       }
@@ -454,9 +475,12 @@ export class AdminController {
 
       if (!local) {
         await transaction.rollback();
-        return res.status(404).json({ message: "Local não encontrado." });
+        return res
+          .status(404)
+          .json({ message: "Local não encontrado." });
       }
 
+      let emailInfo: { subject: string; html: string } | null = null;
       const statusOriginal = local.status;
       const dadosRecebidos = (local.dados_atualizacao || {}) as any;
 
@@ -464,6 +488,7 @@ export class AdminController {
         statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO &&
         local.dados_atualizacao
       ) {
+        
         // --- LÓGICA DA LOGO RESTAURADA ---
         if (
           "logoUrl" in adminEditedData &&
@@ -477,12 +502,13 @@ export class AdminController {
             } catch (err) {
               console.error(
                 `AVISO: Falha ao deletar logo: ${logoAntigaUrl}`,
-                err,
+                err
               );
             }
           }
           adminEditedData.logoUrl = null;
-        } else if (dadosRecebidos.logo) {
+        }
+        else if (dadosRecebidos.logo) {
           const logoAntigaUrl = (local as any).logoUrl;
           if (logoAntigaUrl) {
             try {
@@ -491,7 +517,7 @@ export class AdminController {
             } catch (err) {
               console.error(
                 `AVISO: Falha ao deletar logo antiga: ${logoAntigaUrl}`,
-                err,
+                err
               );
             }
           }
@@ -525,8 +551,7 @@ export class AdminController {
           });
 
           const imagensParaCriar = dadosRecebidos.imagens.filter(
-            (url: string) =>
-              !(urlsParaExcluir && urlsParaExcluir.includes(url)),
+            (url: string) => !(urlsParaExcluir && urlsParaExcluir.includes(url))
           );
 
           const novasImagens = imagensParaCriar.map((url: string) => ({
@@ -574,32 +599,36 @@ export class AdminController {
           ativo: true,
           dados_atualizacao: null,
         },
-        { transaction },
+        { transaction }
       );
+
+      if (statusOriginal === StatusLocal.PENDENTE_APROVACAO) {
+        emailInfo = {
+          subject: "Seu cadastro no MeideSaquá foi Aprovado!",
+          html: `<h1>Olá, ${local.nomeResponsavel}!</h1> <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeLocal}</strong>, foi aprovado (com algumas edições do administrador) e já está visível na nossa plataforma!</p><p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá.</strong></p>`,
+        };
+      } else if (
+        statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO
+      ) {
+        emailInfo = {
+          subject: "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
+          html: `<h1>Olá, ${local.nomeResponsavel}!</h1><p>A sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> foi aprovada (com algumas edições do administrador).</p><p>As novas informações já estão visíveis para todos na plataforma.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
+        };
+      }
 
       await transaction.commit();
 
-      if (local.contatoLocal) {
+      if (emailInfo && local.contatoLocal) {
         try {
-          if (statusOriginal === StatusLocal.PENDENTE_APROVACAO) {
-            await EmailService.sendLocalApprovedEmail(
-              local.contatoLocal,
-              local.nomeResponsavel,
-              local.nomeLocal,
-              true,
-            );
-          } else if (statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO) {
-            await EmailService.sendLocalUpdateApprovedEmail(
-              local.contatoLocal,
-              local.nomeResponsavel,
-              local.nomeLocal,
-              true,
-            );
-          }
+          await EmailService.sendGenericEmail({
+            to: local.contatoLocal,
+            subject: emailInfo.subject,
+            html: emailInfo.html,
+          });
         } catch (error) {
           console.error(
             `Falha ao enviar email de notificação para ${local.contatoLocal}:`,
-            error,
+            error
           );
         }
       }
@@ -616,73 +645,17 @@ export class AdminController {
     }
   }
 
-  static async adminDeleteAvaliacao(req: Request, res: Response) {
-    const { id } = req.params;
-
+  static async getAllActiveLocal(req: Request, res: Response) {
     try {
-      const avaliacao = await Avaliacao.findByPk(id);
-
-      if (!avaliacao) {
-        return res.status(404).json({ message: "Avaliação não encontrada." });
-      }
-
-      await avaliacao.destroy();
-
-      return res
-        .status(200)
-        .json({ message: "Avaliação excluída com sucesso." });
+      const local = await LocalService.listarTodos();
+      return res.json(local);
     } catch (error) {
-      console.error("Erro ao excluir avaliação (admin):", error);
-      return res.status(500).json({ message: "Erro ao excluir a avaliação." });
+      console.error(error);
+      return res
+        .status(500)
+        .json({ message: "Erro ao buscar local ativos." });
     }
   }
-
-  // Rota usada pelo painel Admin para ativar/desativar um local (fica invisível ao público quando desativado)
-  static async toggleLocalAtivo(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-
-      // Proteção: req.body pode ser undefined (ex.: requisição sem Content-Type)
-      // Tentamos extrair 'ativo' do body primeiro, depois da query string.
-      let ativo: any = undefined;
-      if (req.body && typeof req.body === 'object') {
-        ativo = (req.body as any).ativo;
-      }
-      if (typeof ativo === 'undefined' && typeof req.query !== 'undefined') {
-        // aceitar /admin/local/:id/ativo?ativo=false
-        const q = (req.query as any).ativo;
-        if (typeof q !== 'undefined') {
-          if (q === 'true' || q === '1' || q === 1 || q === true) ativo = true;
-          else if (q === 'false' || q === '0' || q === 0 || q === false) ativo = false;
-          else ativo = q; // manter valor para validação abaixo
-        }
-      }
-
-      // Converter strings 'true'/'false' vindas do body
-      if (typeof ativo === 'string') {
-        if (ativo.toLowerCase() === 'true') ativo = true;
-        else if (ativo.toLowerCase() === 'false') ativo = false;
-      }
-
-      // Se 'ativo' não foi enviado, buscamos o local e INVERTIMOS o valor atual (toggle)
-      let finalAtivo: boolean;
-      if (typeof ativo === 'boolean') {
-        finalAtivo = ativo;
-      } else {
-        const localAtual = await Local.findByPk(Number(id));
-        if (!localAtual) return res.status(404).json({ message: 'Local não encontrado.' });
-        // garante boolean
-        const atual = !!(localAtual as any).ativo;
-        finalAtivo = !atual;
-      }
-
-      const local = await LocalService.alterarStatusAtivo(Number(id), finalAtivo);
-       return res.status(200).json(local);
-     } catch (error: any) {
-       console.error("Erro ao alterar status de ativo pelo Admin:", error);
-       return res.status(500).json({ message: error.message || "Erro interno." });
-     }
-   }
 
   static async adminUpdateLocal(req: Request, res: Response) {
     const { id } = req.params;
@@ -695,7 +668,7 @@ export class AdminController {
       } catch (e) {
         console.error(
           "Falha ao parsear urlsParaExcluir em adminUpdateLocal:",
-          e,
+          e
         );
         urlsParaExcluir = [];
       }
@@ -711,11 +684,14 @@ export class AdminController {
 
       if (!local) {
         await transaction.rollback();
-        return res.status(404).json({ message: "Local não encontrado." });
+        return res
+          .status(404)
+          .json({ message: "Local não encontrado." });
       }
 
       const statusOriginal = local.status;
       const dadosRecebidos = (local.dados_atualizacao || {}) as any;
+      let emailInfo: { subject: string; html: string } | null = null;
 
       // --- LÓGICA DA LOGO RESTAURADA ---
       if (
@@ -732,7 +708,7 @@ export class AdminController {
           } catch (err) {
             console.error(
               `AVISO: Falha ao deletar logo: ${logoAntigaUrl}`,
-              err,
+              err
             );
           }
         }
@@ -750,7 +726,7 @@ export class AdminController {
           } catch (err) {
             console.error(
               `AVISO: Falha ao deletar logo antiga: ${logoAntigaUrl}`,
-              err,
+              err
             );
           }
         }
@@ -786,7 +762,7 @@ export class AdminController {
         });
 
         const imagensParaCriar = dadosRecebidos.imagens.filter(
-          (url: string) => !(urlsParaExcluir && urlsParaExcluir.includes(url)),
+          (url: string) => !(urlsParaExcluir && urlsParaExcluir.includes(url))
         );
 
         const novasImagens = imagensParaCriar.map((url: string) => ({
@@ -833,32 +809,36 @@ export class AdminController {
           ativo: true,
           dados_atualizacao: null,
         },
-        { transaction },
+        { transaction }
       );
+
+      if (statusOriginal === StatusLocal.PENDENTE_APROVACAO) {
+        emailInfo = {
+          subject: "Seu cadastro no MeideSaquá foi Aprovado!",
+          html: `<h1>Olá, ${local.nomeResponsavel}!</h1> <p>Temos uma ótima notícia: o seu local, <strong>${local.nomeLocal}</strong>, foi aprovado (com algumas edições do administrador) e já está visível na nossa plataforma!</p><p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá.</strong></p>`,
+        };
+      } else if (
+        statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO
+      ) {
+        emailInfo = {
+          subject: "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
+          html: `<h1>Olá, ${local.nomeResponsavel}!</h1><p>A sua solicitação para atualizar os dados do local <strong>${local.nomeLocal}</strong> foi aprovada (com algumas edições do administrador).</p><p>As novas informações já estão visíveis para todos na plataforma.</p><br><p>Atenciosamente,</p><p><strong>Equipe MeideSaquá</strong></p>`,
+        };
+      }
 
       await transaction.commit();
 
-      if (local.contatoLocal) {
+      if (emailInfo && local.contatoLocal) {
         try {
-          if (statusOriginal === StatusLocal.PENDENTE_APROVACAO) {
-            await EmailService.sendLocalApprovedEmail(
-              local.contatoLocal,
-              local.nomeResponsavel,
-              local.nomeLocal,
-              true,
-            );
-          } else if (statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO) {
-            await EmailService.sendLocalUpdateApprovedEmail(
-              local.contatoLocal,
-              local.nomeResponsavel,
-              local.nomeLocal,
-              true,
-            );
-          }
+          await EmailService.sendGenericEmail({
+            to: local.contatoLocal,
+            subject: emailInfo.subject,
+            html: emailInfo.html,
+          });
         } catch (error) {
           console.error(
             `Falha ao enviar email de notificação para ${local.contatoLocal}:`,
-            error,
+            error
           );
         }
       }
@@ -875,27 +855,22 @@ export class AdminController {
     }
   }
 
-  static async getAllActiveLocal(req: Request, res: Response) {
-    try {
-      const local = await LocalService.listarTodos();
-      return res.json(local);
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Erro ao buscar local ativos." });
-    }
-  }
-
   static async getAvaliacoesByLocal(req: Request, res: Response) {
     try {
       const { localId } = req.params;
       const localIdNum = Number(localId);
 
-      const local = await Local.findByPk(localIdNum, {
-        attributes: ["localId", "nomeLocal", "categoria"],
-      });
+      const local = await Local.findByPk(
+        localIdNum,
+        {
+          attributes: ["localId", "nomeLocal", "categoria"], 
+        }
+      );
 
       if (!local) {
-        return res.status(404).json({ message: "Local não encontrado." });
+        return res
+          .status(404)
+          .json({ message: "Local não encontrado." });
       }
 
       const avaliacoes = await Avaliacao.findAll({
@@ -927,8 +902,32 @@ export class AdminController {
 
       return res.json({ local, avaliacoes });
     } catch (error) {
-      console.error("Erro ao buscar avaliações por local (admin):", error);
+      console.error(
+        "Erro ao buscar avaliações por local (admin):",
+        error
+      );
       return res.status(500).json({ message: "Erro ao buscar avaliações." });
+    }
+  }
+
+  static async adminDeleteAvaliacao(req: Request, res: Response) {
+    const { id } = req.params;
+
+    try {
+      const avaliacao = await Avaliacao.findByPk(id);
+
+      if (!avaliacao) {
+        return res.status(404).json({ message: "Avaliação não encontrada." });
+      }
+
+      await avaliacao.destroy();
+
+      return res
+        .status(200)
+        .json({ message: "Avaliação excluída com sucesso." });
+    } catch (error) {
+      console.error("Erro ao excluir avaliação (admin):", error);
+      return res.status(500).json({ message: "Erro ao excluir a avaliação." });
     }
   }
 
@@ -1010,7 +1009,7 @@ export class AdminController {
       // Atualizando para não buscar os campos escala e venda (que foram excluídos)
       const Locais = await Local.findAll({
         where: { status: StatusLocal.ATIVO },
-        attributes: ["localId", "categoria"],
+        attributes: ["localId", "categoria"], 
       });
 
       const totalLocais = Locais.length;
@@ -1046,9 +1045,7 @@ export class AdminController {
 
       Locais.forEach((e) => {
         if (e.categoria) {
-          const catNome =
-            e.categoria.charAt(0).toUpperCase() +
-            e.categoria.slice(1).toLowerCase();
+          const catNome = e.categoria.charAt(0).toUpperCase() + e.categoria.slice(1).toLowerCase();
           categoriasMap[catNome] = (categoriasMap[catNome] || 0) + 1;
         }
       });
@@ -1064,7 +1061,7 @@ export class AdminController {
       const pageViews = { home: 0, espacoExplore: 0, categoriasTotal: 0 };
       const mapaVisualizacoes: { [key: string]: number } = {};
       const mapaCursos: { [key: string]: number } = {};
-
+      
       const espacoExploreClicks = { gov: 0, wpp: 0, email: 0 };
       let perfilCompartilhado = 0;
 
@@ -1074,21 +1071,16 @@ export class AdminController {
         } else if (v.identificador === "ESPACO_MEI") {
           pageViews.espacoExplore = v.visualizacoes;
         } else if (v.identificador.startsWith("CAT_")) {
-          let nomeCat = v.identificador
-            .replace("CAT_", "")
-            .replace(/_/g, " ")
-            .toLowerCase();
+          let nomeCat = v.identificador.replace("CAT_", "").replace(/_/g, " ").toLowerCase();
           nomeCat = nomeCat.charAt(0).toUpperCase() + nomeCat.slice(1);
           mapaVisualizacoes[nomeCat] = v.visualizacoes;
           pageViews.categoriasTotal += v.visualizacoes;
         } else if (v.identificador.startsWith("CURSO_")) {
-          let nomeCurso = v.identificador
-            .replace("CURSO_", "")
-            .replace(/_/g, " ")
-            .toLowerCase();
+          let nomeCurso = v.identificador.replace("CURSO_", "").replace(/_/g, " ").toLowerCase();
           nomeCurso = nomeCurso.charAt(0).toUpperCase() + nomeCurso.slice(1);
           mapaCursos[nomeCurso] = v.visualizacoes;
-        } else if (v.identificador === "LINK_GOV") {
+        }
+        else if (v.identificador === "LINK_GOV") {
           espacoExploreClicks.gov = v.visualizacoes;
         } else if (v.identificador === "LINK_WPP") {
           espacoExploreClicks.wpp = v.visualizacoes;
@@ -1119,11 +1111,51 @@ export class AdminController {
         pageViews,
         chartCursos,
         espacoExploreClicks,
-        perfilCompartilhado,
+        perfilCompartilhado
       });
     } catch (error) {
       console.error("Erro dashboard:", error);
       return res.status(500).json({ message: "Erro ao buscar estatísticas." });
+    }
+  }
+
+  static async rejectRequest(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      const local = await Local.findByPk(id);
+      if (!local) return res.status(404).json({ message: "Local não encontrado." });
+
+      await adminService.rejeitarSolicitacao(Number(id));
+
+      // Tenta notificar por email se houver contato
+      if ((local as any).contatoLocal) {
+        try {
+          await EmailService.sendGenericEmail({
+            to: (local as any).contatoLocal,
+            subject: "Sua solicitação foi rejeitada",
+            html: `<p>Sua solicitação para o local <strong>${(local as any).nomeLocal}</strong> foi rejeitada.</p><p>${reason || ''}</p>`,
+          });
+        } catch (err) {
+          console.error('Falha ao enviar email de rejeição:', err);
+        }
+      }
+
+      return res.status(200).json({ message: 'Solicitação rejeitada.' });
+    } catch (error) {
+      console.error('Erro ao rejeitar a solicitação (admin):', error);
+      return res.status(500).json({ message: 'Erro ao rejeitar a solicitação.' });
+    }
+  }
+
+  static async getInactiveLocals(req: Request, res: Response) {
+    try {
+      const locais = await LocalService.listarInativos();
+      return res.status(200).json(locais);
+    } catch (error: any) {
+      console.error("Erro ao buscar locais inativos:", error);
+      return res.status(500).json({ message: error.message || "Erro ao buscar locais inativos." });
     }
   }
 }
