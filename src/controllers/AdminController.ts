@@ -11,6 +11,9 @@ import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
 import ContadorVisualizacao from "../entities/ContadorVisualizacao.entity";
 import adminService from "../services/AdminService";
+import AuthService from "../services/AuthService";
+import bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from "uuid";
 
 export const aprovarAtualizacao = async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -1156,6 +1159,99 @@ export class AdminController {
     } catch (error: any) {
       console.error("Erro ao buscar locais inativos:", error);
       return res.status(500).json({ message: error.message || "Erro ao buscar locais inativos." });
+    }
+  }
+
+  // =====================
+  // Gerenciamento de usuários (rotas admin)
+  // =====================
+
+  static async getAllUsers(req: Request, res: Response) {
+    try {
+      const users = await Usuario.findAll({
+        attributes: { exclude: ["password", "confirmationToken", "resetPasswordToken", "resetPasswordTokenExpiry", "emailChangeToken"] },
+      });
+      return res.status(200).json(users);
+    } catch (error: any) {
+      console.error("Erro ao listar usuários (admin):", error);
+      return res.status(500).json({ message: error.message || "Erro ao listar usuários." });
+    }
+  }
+
+  static async adminUpdateUser(req: Request, res: Response) {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido." });
+
+      const updated = await AuthService.updateUserProfile(id, req.body);
+      const userObj = (updated && typeof updated.get === 'function') ? updated.get({ plain: true }) : updated;
+      const { password, ...safe } = userObj as any;
+      return res.status(200).json(safe);
+    } catch (error: any) {
+      console.error("Erro ao atualizar usuário (admin):", error);
+      return res.status(400).json({ message: error.message || "Erro ao atualizar usuário." });
+    }
+  }
+
+  static async adminDeleteUser(req: Request, res: Response) {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido." });
+
+      await AuthService.deleteUser(id);
+      return res.status(200).json({ message: "Usuário excluído com sucesso." });
+    } catch (error: any) {
+      console.error("Erro ao excluir usuário (admin):", error);
+      return res.status(500).json({ message: error.message || "Erro ao excluir usuário." });
+    }
+  }
+
+  static async adminChangeUserPassword(req: Request, res: Response) {
+    try {
+      const id = Number(req.params.id);
+      const { newPassword } = req.body;
+      if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido." });
+      if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+        return res.status(400).json({ message: "A nova senha é obrigatória e deve ter ao menos 6 caracteres." });
+      }
+
+      const user = await Usuario.findByPk(id);
+      if (!user) return res.status(404).json({ message: "Usuário não encontrado." });
+
+      const hashed = await bcrypt.hash(newPassword, 10);
+      (user as any).password = hashed;
+      (user as any).resetPasswordToken = null;
+      (user as any).resetPasswordTokenExpiry = null;
+      await user.save();
+
+      return res.status(200).json({ message: "Senha atualizada com sucesso." });
+    } catch (error: any) {
+      console.error("Erro ao alterar senha do usuário (admin):", error);
+      return res.status(500).json({ message: error.message || "Erro ao alterar senha." });
+    }
+  }
+
+  static async resendConfirmationEmail(req: Request, res: Response) {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido." });
+
+      const user = await Usuario.findByPk(id);
+      if (!user) return res.status(404).json({ message: "Usuário não encontrado." });
+      if ((user as any).enabled) return res.status(400).json({ message: "Usuário já verificado." });
+
+      let token = (user as any).confirmationToken;
+      if (!token) {
+        token = uuidv4();
+        (user as any).confirmationToken = token;
+        await user.save();
+      }
+
+      await EmailService.sendConfirmationEmail((user as any).email, token);
+      return res.status(200).json({ message: "Email de confirmação reenviado." });
+    } catch (error: any) {
+      console.error("Erro ao reenviar email de confirmação (admin):", error);
+      return res.status(500).json({ message: error.message || "Erro ao reenviar email de confirmação." });
     }
   }
 }

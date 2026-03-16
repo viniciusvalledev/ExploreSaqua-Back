@@ -86,5 +86,38 @@ router.get(
   AdminController.getDashboardStats
 );
 
+// =====================
+// Rotas de gerenciamento de usuários (Admin)
+// =====================
+router.get(
+  "/users",
+  adminAuthMiddleware,
+  AdminController.getAllUsers
+);
+
+router.put(
+  "/users/:id",
+  adminAuthMiddleware,
+  AdminController.adminUpdateUser
+);
+
+router.delete(
+  "/users/:id",
+  adminAuthMiddleware,
+  AdminController.adminDeleteUser
+);
+
+router.patch(
+  "/users/:id/password",
+  adminAuthMiddleware,
+  AdminController.adminChangeUserPassword
+);
+
+router.post(
+  "/users/:id/resend-confirmation",
+  adminAuthMiddleware,
+  AdminController.resendConfirmationEmail
+);
+
 
 export default router;
