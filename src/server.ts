@@ -16,13 +16,11 @@ const PORT = process.env.PORT || 3306;
     await sequelize.authenticate();
     console.log("Conexão com a base de dados estabelecida com sucesso (authenticate).");
 
-    // SINCRONIZAÇÃO AUTOMÁTICA: sincroniza todos os modelos com o banco
-    // ALTER: faz alterações necessárias sem dropar tabelas (útil quando não quer migrations)
     await sequelize.sync({ alter: true });
     console.log("✅ Banco de dados sincronizado (sequelize.sync alter: true)");
 
     app.listen(PORT, () => {
-      const docsUrl = `http://localhost:${PORT}/docs`;
+      const docsUrl = `${process.env.APP_URL}/docs`;
       console.log(`🚀 Servidor a rodar na porta ${PORT}`);
       console.log(`✅ A sua API está pronta! Pode aceder em http://localhost:${PORT}`);
       console.log(`📘 Swagger UI: ${docsUrl} `);
