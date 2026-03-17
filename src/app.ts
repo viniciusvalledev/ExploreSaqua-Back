@@ -16,6 +16,8 @@ import adminRoutes from "./routes/admin.routes";
 import { authMiddleware } from "./middlewares/auth.middleware";
 import LocalController from "./controllers/LocalController";
 import router from "./routes/admin.routes";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./config/swagger";
 
 const app = express();
 
@@ -28,6 +30,9 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Serve os arquivos estáticos (imagens)
 app.use("/uploads", express.static(uploadsPath));
+
+// Swagger UI
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Rotas
 app.use("/api/auth", authRoutes);
