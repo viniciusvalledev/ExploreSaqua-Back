@@ -90,7 +90,7 @@ class AuthService {
 
     if (!utilizador.enabled) {
       throw new Error(
-        "Sua conta ainda não foi verificada. Por favor, verifique seu e-mail."
+        "Sua conta não foi verificada. Verifique seu e-mail. Se não recebeu, clique em reenviar para solicitar um novo e-mail de confirmação."
       );
     }
 

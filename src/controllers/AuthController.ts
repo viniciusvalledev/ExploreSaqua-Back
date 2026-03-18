@@ -34,13 +34,22 @@ class AuthController {
       return res.status(200).json(data);
     } catch (error: any) {
       console.error("Erro no login:", error.message);
+      const msg = error?.message || "Ocorreu um erro inesperado.";
+      const normalized = msg.toLowerCase();
+
+      // Se for erro de credenciais ou conta não verificada, devolve 401 com a mensagem original
       if (
-        error.message.includes("inválidos") ||
-        error.message.includes("não foi verificada")
+        normalized.includes("inválid") ||
+        normalized.includes("invalid") ||
+        normalized.includes("verific") ||
+        normalized.includes("nao foi verificada") ||
+        normalized.includes("não foi verificada")
       ) {
-        return res.status(401).json({ message: error.message });
+        return res.status(401).json({ message: msg });
       }
-      return res.status(500).json({ message: "Ocorreu um erro inesperado." });
+
+      // Para outros erros, devolve a mensagem também (status 500)
+      return res.status(500).json({ message: msg });
     }
   }
 

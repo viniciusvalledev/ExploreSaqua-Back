@@ -20,7 +20,7 @@ const PORT = process.env.PORT || 3306;
     console.log("✅ Banco de dados sincronizado (sequelize.sync alter: true)");
 
     app.listen(PORT, () => {
-      const docsUrl = `${process.env.APP_URL}/docs`;
+      const docsUrl = `http://localhost:${PORT}/docs`;
       console.log(`🚀 Servidor a rodar na porta ${PORT}`);
       console.log(`✅ A sua API está pronta! Pode aceder em http://localhost:${PORT}`);
       console.log(`📘 Swagger UI: ${docsUrl} `);
