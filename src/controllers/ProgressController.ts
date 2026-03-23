@@ -7,6 +7,12 @@ class ProgressController {
       const userId = Number(req.params.userId);
       if (Number.isNaN(userId)) return res.status(400).json({ message: 'userId inválido' });
 
+      // Garante que o usuário autenticado é o mesmo do path
+      const authUser = (req as any).user;
+      if (!authUser || authUser.id !== userId) {
+        return res.status(403).json({ message: 'Acesso negado' });
+      }
+
       const result = await ProgressService.getUserProgress(userId);
       return res.status(result.status).json(result.body);
     } catch (error: any) {

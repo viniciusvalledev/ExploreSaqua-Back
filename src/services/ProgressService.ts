@@ -3,6 +3,25 @@ import Usuario from '../entities/Usuario.entity';
 import UsuarioLocal from '../entities/UsuarioLocal.entity';
 
 class ProgressService {
+  private static determineTag(percentage: number): string {
+    const buckets = [
+      'Iniciante',
+      'Turista',
+      'Viajante',
+      'Explorador',
+      'Aventureiro',
+      'Conhecedor',
+      'Especialista',
+      'Veterano',
+      'Expert',
+      'Lendário',
+      'Mestre',
+    ];
+
+    const idx = Math.min(10, Math.floor(percentage / 10));
+    return buckets[idx];
+  }
+
   public static async getUserProgress(userId: number) {
     // Verificar se usuário existe
     const user = await Usuario.findByPk(userId);
@@ -18,13 +37,16 @@ class ProgressService {
 
     // Tratar divisão por zero
     if (totalLocations === 0) {
+      const percentage = 0;
+      const tag = ProgressService.determineTag(percentage);
       return {
         status: 200,
         body: {
           userId,
-          progressPercentage: 0,
+          progressPercentage: percentage,
           visitedCount,
           totalLocations,
+          tag,
         },
       };
     }
@@ -35,6 +57,8 @@ class ProgressService {
     // Garantir que o progresso máximo seja 100%
     if (progressPercentage > 100) progressPercentage = 100;
 
+    const tag = ProgressService.determineTag(progressPercentage);
+
     return {
       status: 200,
       body: {
@@ -42,6 +66,7 @@ class ProgressService {
         progressPercentage,
         visitedCount,
         totalLocations,
+        tag,
       },
     };
   }

@@ -13,6 +13,10 @@ class Usuario extends Model {
   public resetPasswordTokenExpiry!: Date | null;
   public unconfirmedEmail!: string | null;
   public emailChangeToken!: string | null;
+
+  // Campos de progresso do usuário
+  public progressPercentage!: number | string;
+  public currentTag!: string;
 }
 
 Usuario.init({
@@ -67,6 +71,20 @@ Usuario.init({
     type: DataTypes.STRING,
     allowNull: true,
     field: 'email_change_token'
+  },
+  // Novo: porcentagem de progresso
+  progressPercentage: {
+    type: DataTypes.DECIMAL(5,2),
+    allowNull: false,
+    defaultValue: 0,
+    field: 'progress_percentage'
+  },
+  // Novo: tag atual do usuário
+  currentTag: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'Iniciante',
+    field: 'current_tag'
   }
 }, {
   sequelize,
