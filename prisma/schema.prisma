@@ -40,48 +40,62 @@ model imagens_local {
 }
 
 model locais {
-  local_id                 Int             @id @default(autoincrement())
-  logoUrl                  String?         @db.Text
-  tipo_cadastro            String?         @db.VarChar(255)
-  indicador_nome           String?         @db.VarChar(255)
-  indicador_contato        String?         @db.VarChar(255)
-  indicador_email          String?         @db.VarChar(255)
-  email_responsavel        String          @db.VarChar(255)
-  contato_responsavel      String          @db.VarChar(255)
-  alvara_funcionamento_url String?         @db.Text
-  alvara_vigilancia_url    String?         @db.Text
-  categoria                String?         @db.VarChar(255)
-  nome_responsavel         String          @db.VarChar(255)
-  cpf_responsavel          String          @db.VarChar(14)
-  contato_local            String?         @db.VarChar(255)
-  nome_local               String?         @db.VarChar(255)
-  endereco                 String?         @db.VarChar(255)
-  descricao                String?         @db.Text
-  instagram                String?         @db.VarChar(255)
-  status                   locais_status   @default(pendente_aprovacao)
+  local_id                 Int              @id @default(autoincrement())
+  logoUrl                  String?          @db.Text
+  tipo_cadastro            String?          @db.VarChar(255)
+  indicador_nome           String?          @db.VarChar(255)
+  indicador_contato        String?          @db.VarChar(255)
+  indicador_email          String?          @db.VarChar(255)
+  email_responsavel        String           @db.VarChar(255)
+  contato_responsavel      String           @db.VarChar(255)
+  alvara_funcionamento_url String?          @db.Text
+  alvara_vigilancia_url    String?          @db.Text
+  categoria                String?          @db.VarChar(255)
+  nome_responsavel         String           @db.VarChar(255)
+  cpf_responsavel          String           @db.VarChar(14)
+  contato_local            String?          @db.VarChar(255)
+  nome_local               String?          @db.VarChar(255)
+  endereco                 String?          @db.VarChar(255)
+  descricao                String?          @db.Text
+  instagram                String?          @db.VarChar(255)
+  status                   locais_status    @default(pendente_aprovacao)
   dados_atualizacao        Json?
-  latitude                 Float?          @db.Float
-  longitude                Float?          @db.Float
-  createdAt                DateTime        @db.DateTime(0)
-  updatedAt                DateTime        @db.DateTime(0)
-  ativo                    Boolean?        @default(false)
+  latitude                 Float?           @db.Float
+  longitude                Float?           @db.Float
+  createdAt                DateTime         @db.DateTime(0)
+  updatedAt                DateTime         @db.DateTime(0)
+  ativo                    Boolean?         @default(false)
   avaliacoes               avaliacoes[]
   imagens_local            imagens_local[]
+  usuario_locais           usuario_locais[]
 }
 
 model usuarios {
-  usuario_id                  Int          @id @default(autoincrement())
-  nome_completo_user          String       @db.VarChar(255)
-  username                    String       @db.VarChar(255)
-  email                       String       @db.VarChar(255)
-  password                    String       @db.VarChar(255)
-  enabled                     Boolean?     @default(false)
-  confirmation_token          String?      @db.VarChar(255)
-  reset_password_token        String?      @db.VarChar(255)
-  reset_password_token_expiry DateTime?    @db.DateTime(0)
-  unconfirmed_email           String?      @db.VarChar(255)
-  email_change_token          String?      @db.VarChar(255)
+  usuario_id                  Int              @id @default(autoincrement())
+  nome_completo_user          String           @db.VarChar(255)
+  username                    String           @db.VarChar(255)
+  email                       String           @db.VarChar(255)
+  password                    String           @db.VarChar(255)
+  enabled                     Boolean?         @default(false)
+  confirmation_token          String?          @db.VarChar(255)
+  reset_password_token        String?          @db.VarChar(255)
+  reset_password_token_expiry DateTime?        @db.DateTime(0)
+  unconfirmed_email           String?          @db.VarChar(255)
+  email_change_token          String?          @db.VarChar(255)
   avaliacoes                  avaliacoes[]
+  usuario_locais              usuario_locais[]
+}
+
+model usuario_locais {
+  id         Int      @id @default(autoincrement())
+  usuario_id Int
+  local_id   Int
+  visited_at DateTime @db.DateTime(0)
+  usuarios   usuarios @relation(fields: [usuario_id], references: [usuario_id], onDelete: Cascade, map: "usuario_locais_ibfk_21")
+  locais     locais   @relation(fields: [local_id], references: [local_id], onDelete: Cascade, map: "usuario_locais_ibfk_22")
+
+  @@unique([usuario_id, local_id], map: "usuario_locais_localId_usuarioId_unique")
+  @@index([local_id], map: "local_id")
 }
 
 enum locais_status {

@@ -5,6 +5,7 @@ import Local from "./Local.entity";
 import Avaliacao from "./Avaliacao.entity";
 import ImagemLocal from "./ImagemLocal.entity";
 import ContadorVisualizacao from "./ContadorVisualizacao.entity";
+import UsuarioLocal from "./UsuarioLocal.entity";
 
 // Usuário <-> Avaliação
 Usuario.hasMany(Avaliacao, { foreignKey: "usuarioId", as: "avaliacoes" });
@@ -42,6 +43,20 @@ Avaliacao.belongsTo(Avaliacao, {
   as: "pai",
 });
 
+// Associação N:M entre Usuário e Local (locais visitados)
+Usuario.belongsToMany(Local, {
+  through: UsuarioLocal,
+  foreignKey: 'usuarioId',
+  otherKey: 'localId',
+  as: 'locaisVisitados',
+});
+Local.belongsToMany(Usuario, {
+  through: UsuarioLocal,
+  foreignKey: 'localId',
+  otherKey: 'usuarioId',
+  as: 'usuariosQueVisitaram',
+});
+
 
 export {
   Usuario,
@@ -49,4 +64,5 @@ export {
   Avaliacao,
   ImagemLocal,
   ContadorVisualizacao,
+  UsuarioLocal,
 };

@@ -18,6 +18,7 @@ import LocalController from "./controllers/LocalController";
 import router from "./routes/admin.routes";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger";
+import progressRoutes from './routes/progress.routes';
 
 const app = express();
 
@@ -44,5 +45,6 @@ app.use("/api/admin", adminRoutes);
 
 // Rotas protegidas
 app.use("/api/users", authMiddleware, userRoutes);
+app.use('/api/users', authMiddleware, progressRoutes);
 
 export default app;
