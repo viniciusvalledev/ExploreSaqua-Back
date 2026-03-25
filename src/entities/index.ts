@@ -21,6 +21,16 @@ Avaliacao.belongsTo(Local, {
   as: "local",
 });
 
+// Usuário (dono) <-> Estabelecimento
+Usuario.hasMany(Local, {
+  foreignKey: "usuarioId",
+  as: "locaisCadastrados",
+});
+Local.belongsTo(Usuario, {
+  foreignKey: "usuarioId",
+  as: "dono",
+});
+
 // Estabelecimento <-> ImagemProduto
 Local.hasMany(ImagemLocal, {
   foreignKey: "localId",

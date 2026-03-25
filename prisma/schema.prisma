@@ -41,6 +41,7 @@ model imagens_local {
 
 model locais {
   local_id                 Int              @id @default(autoincrement())
+  usuario_id               Int?
   logoUrl                  String?          @db.Text
   tipo_cadastro            String?          @db.VarChar(255)
   indicador_nome           String?          @db.VarChar(255)
@@ -67,7 +68,10 @@ model locais {
   ativo                    Boolean?         @default(false)
   avaliacoes               avaliacoes[]
   imagens_local            imagens_local[]
+  usuarios                 usuarios?        @relation(fields: [usuario_id], references: [usuario_id], onDelete: SetNull, map: "locais_ibfk_usuario")
   usuario_locais           usuario_locais[]
+
+  @@index([usuario_id], map: "usuario_id")
 }
 
 model usuarios {
@@ -83,6 +87,7 @@ model usuarios {
   unconfirmed_email           String?          @db.VarChar(255)
   email_change_token          String?          @db.VarChar(255)
   avaliacoes                  avaliacoes[]
+  locais                      locais[]
   usuario_locais              usuario_locais[]
 }
 

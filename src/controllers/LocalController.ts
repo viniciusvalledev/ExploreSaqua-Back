@@ -96,7 +96,13 @@ class LocalController {
 
   public cadastrar = async (req: Request, res: Response): Promise<Response> => {
     try {
+      const usuarioLogadoId = (req as any).user?.id;
+      if (!usuarioLogadoId) {
+        return res.status(401).json({ message: "Acesso negado. Faça login para cadastrar um local." });
+      }
+
       const dadosCompletos = await this._moveFilesAndPrepareData(req);
+      dadosCompletos.usuarioId = usuarioLogadoId;
 
       // Se for indicação, mapeia campos específicos vindos do FormData
       if (dadosCompletos.tipoCadastro && String(dadosCompletos.tipoCadastro) === "indication") {

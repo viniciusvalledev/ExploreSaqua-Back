@@ -13,6 +13,7 @@ export enum StatusLocal {
 
 class Local extends Model {
   public localId!: number;
+  public usuarioId!: number | null;
   public categoria!: string;
   public contatoLocal!: string;
   public nomeLocal!: string;
@@ -47,6 +48,11 @@ Local.init(
       autoIncrement: true,
       primaryKey: true,
       field: "local_id",
+    },
+    usuarioId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "usuario_id",
     },
       logoUrl: {
       type: DataTypes.TEXT,
