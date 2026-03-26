@@ -4,6 +4,32 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 import Usuario from '../entities/Usuario.entity';
 import Local from '../entities/Local.entity';
 import UsuarioLocal from '../entities/UsuarioLocal.entity';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+
+const UPLOADS_DIR = path.resolve("uploads");
+
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, UPLOADS_DIR);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+});
 
 const router = Router();
 
@@ -12,7 +38,15 @@ router.use(authMiddleware);
 router.post('/profile', 
     UserController.updateUserProfile
 );
-router.delete('/profile', 
+router.get('/profile/estabelecimentos',
+  UserController.listarMeusEstabelecimentos
+);router.put('/profile/estabelecimentos/:localId',
+    upload.fields([
+        { name: "logo", maxCount: 1 },
+        { name: "imagens", maxCount: 4 },
+    ]),
+    UserController.atualizarMeuEstabelecimento
+);router.delete('/profile', 
     UserController.deleteUserProfile
 );
 router.put('/password', 

@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import LocalController from "../controllers/LocalController";
 import { compressImages } from "../middlewares/compression.middleware";
+import { authMiddleware } from "../middlewares/auth.middleware";
 
 // Define o caminho para a pasta de uploads de forma segura
 const UPLOADS_DIR = path.resolve("uploads");
@@ -45,6 +46,7 @@ router.get("/categoria/:categoria", LocalController.buscarPorCategoria);
 
 router.post(
   "/",
+  authMiddleware,
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "imagens", maxCount: 4 },             

@@ -1171,7 +1171,29 @@ export class AdminController {
       const users = await Usuario.findAll({
         attributes: { exclude: ["password", "confirmationToken", "resetPasswordToken", "resetPasswordTokenExpiry", "emailChangeToken"] },
       });
-      return res.status(200).json(users);
+
+      const usersComInteracoes = await Promise.all(
+        users.map(async (user) => {
+          const userData = user.toJSON() as any;
+
+          const [comentariosCount, projetosCount] = await Promise.all([
+            Avaliacao.count({ where: { usuarioId: userData.usuarioId, parentId: null } }),
+            Local.count({ where: { usuarioId: userData.usuarioId } }),
+          ]);
+
+          return {
+            ...userData,
+            interacoes: {
+              comentariosCount,
+              projetosCount,
+              fezComentario: comentariosCount > 0,
+              temProjetoCadastrado: projetosCount > 0,
+            },
+          };
+        })
+      );
+
+      return res.status(200).json(usersComInteracoes);
     } catch (error: any) {
       console.error("Erro ao listar usuários (admin):", error);
       return res.status(500).json({ message: error.message || "Erro ao listar usuários." });

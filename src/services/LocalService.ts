@@ -13,6 +13,7 @@ public async cadastrarLocalComImagens(dados: any): Promise<Local> {
     const transaction = await sequelize.transaction();
     try {
 const dadosParaCriacao = {
+  usuarioId: dados.usuarioId ? Number(dados.usuarioId) : null,
   nomeLocal: String(dados.nomeLocal),
   categoria: String(dados.categoria),
   nomeResponsavel: String(dados.nomeResponsavel),
