@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import UserController from '../controllers/UserController';
-import { authMiddleware } from '../middlewares/auth.middleware';
 import Usuario from '../entities/Usuario.entity';
 import Local from '../entities/Local.entity';
 import UsuarioLocal from '../entities/UsuarioLocal.entity';
@@ -33,20 +32,29 @@ const upload = multer({
 
 const router = Router();
 
-router.use(authMiddleware);
-
 router.post('/profile', 
     UserController.updateUserProfile
 );
 router.get('/profile/estabelecimentos',
   UserController.listarMeusEstabelecimentos
-);router.put('/profile/estabelecimentos/:localId',
+);
+router.get('/profile/comentarios',
+  UserController.listarMeusComentarios
+);
+router.get('/profile/avaliacoes',
+  UserController.listarMinhasAvaliacoes
+);
+router.get('/profile/reviews',
+  UserController.listarMeusReviews
+);
+router.put('/profile/estabelecimentos/:localId',
     upload.fields([
         { name: "logo", maxCount: 1 },
         { name: "imagens", maxCount: 4 },
     ]),
     UserController.atualizarMeuEstabelecimento
-);router.delete('/profile', 
+);
+router.delete('/profile', 
     UserController.deleteUserProfile
 );
 router.put('/password', 

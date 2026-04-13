@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import AuthService from '../services/AuthService';
 import Local from '../entities/Local.entity';
 import ImagemLocal from '../entities/ImagemLocal.entity';
+import Avaliacao from '../entities/Avaliacao.entity';
+import Usuario from '../entities/Usuario.entity';
 import fs from "fs/promises";
 import path from "path";
 import ProfanityFilter from "../utils/ProfanityFilter";
@@ -10,10 +12,28 @@ interface AuthenticatedRequest extends Request {
     user?: {
         id: number; 
         username: string;
-    }
+    };
+    admin?: {
+        username?: string;
+        role?: string;
+    };
 }
 
 class UserController {
+    private getTargetUserId = (req: AuthenticatedRequest): number | null => {
+        const isAdmin = req.admin?.role === 'admin';
+        if (isAdmin) {
+            const rawId = req.query.usuarioId ?? req.query.userId;
+            if (typeof rawId === 'undefined') return null;
+            const parsed = Number(rawId);
+            if (!Number.isInteger(parsed) || parsed <= 0) return null;
+            return parsed;
+        }
+
+        const userId = req.user?.id;
+        return Number.isInteger(userId) ? userId as number : null;
+    };
+
     public updateUserProfile = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
         try {
             const userId = req.user?.id; 
@@ -54,8 +74,10 @@ class UserController {
 
     public listarMeusEstabelecimentos = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
         try {
-            const userId = req.user?.id;
-            if (!userId) return res.status(401).json({ message: "Não autorizado" });
+            const userId = this.getTargetUserId(req);
+            if (!userId) {
+                return res.status(400).json({ message: "Usuário alvo inválido. Informe usuarioId/userId válido." });
+            }
 
             const locais = await Local.findAll({
                 where: { usuarioId: userId },
@@ -76,6 +98,71 @@ class UserController {
         } catch (error: any) {
             return res.status(500).json({ message: error.message || "Erro ao listar estabelecimentos." });
         }
+    };
+
+    public listarMeusComentarios = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+        try {
+            const userId = this.getTargetUserId(req);
+            if (!userId) {
+                return res.status(400).json({ message: "Usuário alvo inválido. Informe usuarioId/userId válido." });
+            }
+
+            const comentarios = await Avaliacao.findAll({
+                where: { usuarioId: userId },
+                include: [
+                    {
+                        model: Local,
+                        as: "local",
+                        attributes: ["localId", "nomeLocal", "categoria"],
+                    },
+                ],
+                order: [["avaliacoesId", "DESC"]],
+            });
+
+            return res.status(200).json({
+                total: comentarios.length,
+                comentarios,
+            });
+        } catch (error: any) {
+            return res.status(500).json({ message: error.message || "Erro ao listar comentários." });
+        }
+    };
+
+    public listarMinhasAvaliacoes = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+        try {
+            const userId = this.getTargetUserId(req);
+            if (!userId) {
+                return res.status(400).json({ message: "Usuário alvo inválido. Informe usuarioId/userId válido." });
+            }
+
+            const avaliacoes = await Avaliacao.findAll({
+                where: { usuarioId: userId },
+                include: [
+                    {
+                        model: Local,
+                        as: "local",
+                        attributes: ["localId", "nomeLocal", "categoria"],
+                    },
+                    {
+                        model: Usuario,
+                        as: "usuario",
+                        attributes: ["usuarioId", "username", "nomeCompleto"],
+                    },
+                ],
+                order: [["avaliacoesId", "DESC"]],
+            });
+
+            return res.status(200).json({
+                total: avaliacoes.length,
+                avaliacoes,
+            });
+        } catch (error: any) {
+            return res.status(500).json({ message: error.message || "Erro ao listar avaliações." });
+        }
+    };
+
+    public listarMeusReviews = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+        return this.listarMinhasAvaliacoes(req, res);
     };
 
     private _deleteUploadedFilesOnFailure = async (req: Request) => {

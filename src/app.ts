@@ -13,7 +13,7 @@ import avaliacaoRoutes from "./routes/avaliacao.routes";
 import localRoutes from "./routes/local.routes";
 import fileRoutes from "./routes/file.routes";
 import adminRoutes from "./routes/admin.routes";
-import { authMiddleware } from "./middlewares/auth.middleware";
+import { authMiddleware, authOrAdminMiddleware } from "./middlewares/auth.middleware";
 import LocalController from "./controllers/LocalController";
 import router from "./routes/admin.routes";
 import swaggerUi from "swagger-ui-express";
@@ -44,7 +44,7 @@ app.use("/api/files", fileRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Rotas protegidas
-app.use("/api/users", authMiddleware, userRoutes);
+app.use("/api/users", authOrAdminMiddleware, userRoutes);
 app.use('/api/users', authMiddleware, progressRoutes);
 
 export default app;
