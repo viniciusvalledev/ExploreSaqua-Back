@@ -180,7 +180,7 @@ class UserController {
 
     private _moveFilesAndPrepareData = async (req: Request, localExistente: Local): Promise<any> => {
         const dadosDoFormulario = req.body;
-        const arquivos = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const arquivos = (req.files as { [fieldname: string]: Express.Multer.File[] } | undefined) || {};
 
         const fixString = (val: any) => (Array.isArray(val) ? val[0] : val);
         const categoria = fixString(localExistente.categoria);
@@ -200,8 +200,16 @@ class UserController {
             return path.join("uploads", safeCategoria, safenomeLocal, file.filename).replace(/\\/g, "/");
         };
 
-        const logoPath = await moveFile(arquivos["logo"]?.[0]);
-        const galleryFiles = arquivos["imagens"] || [];
+        const logoPath = await moveFile(
+            arquivos["logo"]?.[0] || arquivos["logoUrl"]?.[0]
+        );
+        const galleryFiles =
+            arquivos["imagens"] ||
+            arquivos["portfolio"] ||
+            arquivos["produtos"] ||
+            arquivos["produtosImg"] ||
+            arquivos["localImg"] ||
+            [];
         const imagensPaths: string[] = [];
         for (const file of galleryFiles) {
             const newPath = await moveFile(file);

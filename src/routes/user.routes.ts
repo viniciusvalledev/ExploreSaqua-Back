@@ -6,6 +6,7 @@ import UsuarioLocal from '../entities/UsuarioLocal.entity';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import { compressImages } from '../middlewares/compression.middleware';
 
 const UPLOADS_DIR = path.resolve("uploads");
 
@@ -50,8 +51,14 @@ router.get('/profile/reviews',
 router.put('/profile/estabelecimentos/:localId',
     upload.fields([
         { name: "logo", maxCount: 1 },
+    { name: "logoUrl", maxCount: 1 },
         { name: "imagens", maxCount: 4 },
+    { name: "portfolio", maxCount: 12 },
+    { name: "produtos", maxCount: 12 },
+    { name: "produtosImg", maxCount: 12 },
+    { name: "localImg", maxCount: 12 },
     ]),
+  compressImages,
     UserController.atualizarMeuEstabelecimento
 );
 router.delete('/profile', 

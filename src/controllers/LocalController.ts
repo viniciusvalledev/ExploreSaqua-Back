@@ -39,10 +39,18 @@ class LocalController {
     existingInfo?: { categoria: string; nomeLocal: string }
   ): Promise<any> => {
     const dadosDoFormulario = req.body;
-    const arquivos = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const arquivos = (req.files as { [fieldname: string]: Express.Multer.File[] } | undefined) || {};
 
     // Função para garantir que campos de texto não venham como arrays [Bug do Multer]
     const fixString = (val: any) => (Array.isArray(val) ? val[0] : val);
+    const normalizeOptionalString = (val: any) => {
+      const fixed = fixString(val);
+      if (fixed === undefined || fixed === null) return undefined;
+      const normalized = String(fixed).trim();
+      if (!normalized) return undefined;
+      const lowered = normalized.toLowerCase();
+      return lowered === "undefined" || lowered === "null" ? undefined : normalized;
+    };
 
     const categoria = fixString(existingInfo?.categoria || dadosDoFormulario.categoria);
     const nomeLocal = fixString(existingInfo?.nomeLocal || dadosDoFormulario.nomeLocal || dadosDoFormulario.nomeFantasia || dadosDoFormulario.nomeProjeto);
@@ -65,7 +73,13 @@ class LocalController {
     const alvaraFuncPath = await moveFile(arquivos["alvara_funcionamento"]?.[0]);
     const vigilanciaPath = await moveFile(arquivos["vigilancia_sanitaria"]?.[0]);
 
-    const galleryFiles = arquivos["imagens"] || arquivos["produtos"] || arquivos["produtosImg"] || arquivos["localImg"] || [];
+    const galleryFiles =
+      arquivos["imagens"] ||
+      arquivos["portfolio"] ||
+      arquivos["produtos"] ||
+      arquivos["produtosImg"] ||
+      arquivos["localImg"] ||
+      [];
     const imagensPaths: string[] = [];
     for (const file of galleryFiles) {
       const newPath = await moveFile(file);
@@ -75,16 +89,18 @@ class LocalController {
     // Retorna os dados limpos (strings e caminhos dos arquivos)
     return {
       ...dadosDoFormulario,
-      nomeLocal: fixString(dadosDoFormulario.nomeLocal),
-      categoria: fixString(dadosDoFormulario.categoria),
-      nomeResponsavel: fixString(dadosDoFormulario.nomeResponsavel),
-      cpfResponsavel: fixString(dadosDoFormulario.cpfResponsavel),
-      emailResponsavel: fixString(dadosDoFormulario.emailResponsavel || dadosDoFormulario.emailContato),
-      contatoResponsavel: fixString(dadosDoFormulario.contatoResponsavel),
-      contatoLocal: fixString(dadosDoFormulario.contatoLocal),
-      endereco: fixString(dadosDoFormulario.endereco),
-      descricao: fixString(dadosDoFormulario.descricao),
-      instagram: fixString(dadosDoFormulario.instagram),
+      nomeLocal: normalizeOptionalString(dadosDoFormulario.nomeLocal),
+      categoria: normalizeOptionalString(dadosDoFormulario.categoria),
+      nomeResponsavel: normalizeOptionalString(dadosDoFormulario.nomeResponsavel),
+      cpfResponsavel: normalizeOptionalString(dadosDoFormulario.cpfResponsavel),
+      emailResponsavel: normalizeOptionalString(
+        dadosDoFormulario.emailResponsavel || dadosDoFormulario.emailContato,
+      ),
+      contatoResponsavel: normalizeOptionalString(dadosDoFormulario.contatoResponsavel),
+      contatoLocal: normalizeOptionalString(dadosDoFormulario.contatoLocal),
+      endereco: normalizeOptionalString(dadosDoFormulario.endereco),
+      descricao: normalizeOptionalString(dadosDoFormulario.descricao),
+      instagram: normalizeOptionalString(dadosDoFormulario.instagram),
       latitude: dadosDoFormulario.latitude ? parseFloat(fixString(dadosDoFormulario.latitude)) : null,
       longitude: dadosDoFormulario.longitude ? parseFloat(fixString(dadosDoFormulario.longitude)) : null,
       logoUrl: logoPath,
@@ -99,6 +115,21 @@ class LocalController {
       const usuarioLogadoId = (req as any).user?.id;
       if (!usuarioLogadoId) {
         return res.status(401).json({ message: "Acesso negado. Faça login para cadastrar um local." });
+      }
+
+      const localIdParaAtualizacao = Number((req.body as any)?.localId || (req.body as any)?.id || 0);
+
+      // Compatibilidade com front do perfil: se vier localId/id no payload do cadastro,
+      // tratamos como solicitação de atualização para não criar um novo registro.
+      if (Number.isFinite(localIdParaAtualizacao) && localIdParaAtualizacao > 0) {
+        const dadosAtualizacao = await this._moveFilesAndPrepareData(req);
+        dadosAtualizacao.usuarioId = usuarioLogadoId;
+
+        const localAtualizado = await LocalService.solicitarAtualizacao(
+          localIdParaAtualizacao,
+          dadosAtualizacao,
+        );
+        return res.status(200).json(localAtualizado);
       }
 
       const dadosCompletos = await this._moveFilesAndPrepareData(req);
@@ -124,6 +155,7 @@ class LocalController {
     try {
       const { id } = req.params;
       const dadosAtualizacao = await this._moveFilesAndPrepareData(req);
+      dadosAtualizacao.usuarioId = (req as any).user?.id;
 
       // Validação de palavrões nos campos de atualização
       const camposParaVerificar = ["nomeLocal", "descricao", "nomeResponsavel", "categoria", "endereco"];
@@ -135,7 +167,7 @@ class LocalController {
         }
       }
 
-      const localAtualizado = await LocalService.solicitarAtualizacao(Number(id), req, dadosAtualizacao);
+      const localAtualizado = await LocalService.solicitarAtualizacao(Number(id), dadosAtualizacao);
       return res.status(200).json(localAtualizado);
     } catch (error: any) {
       await this._deleteUploadedFilesOnFailure(req);
@@ -145,11 +177,30 @@ class LocalController {
 
   public solicitarExclusao = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { localId } = req.body;
-      if (!localId) return res.status(400).json({ message: "O ID do local é obrigatório." });
+      const usuarioLogadoId = (req as any).user?.id;
+      const localIdInformado = Number((req.body as any)?.localId || (req.body as any)?.id || 0);
+
+      let localId = localIdInformado;
+
+      if (!localId && usuarioLogadoId) {
+        const localDoUsuario = await Local.findOne({
+          where: { usuarioId: usuarioLogadoId },
+          order: [["localId", "DESC"]],
+        });
+
+        localId = localDoUsuario?.localId ?? 0;
+      }
+
+      if (!localId) {
+        return res.status(400).json({ message: "Não foi possível identificar o local para exclusão." });
+      }
 
       const localExistente = await Local.findByPk(localId);
       if (!localExistente) return res.status(404).json({ message: "Local não encontrado." });
+
+      if (usuarioLogadoId && localExistente.usuarioId && Number(localExistente.usuarioId) !== Number(usuarioLogadoId)) {
+        return res.status(403).json({ message: "Você não tem permissão para solicitar exclusão deste local." });
+      }
 
       const dadosCompletos = await this._moveFilesAndPrepareData(req, {
         categoria: localExistente.categoria,

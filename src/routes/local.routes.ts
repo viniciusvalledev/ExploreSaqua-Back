@@ -49,7 +49,11 @@ router.post(
   authMiddleware,
   upload.fields([
     { name: "logo", maxCount: 1 },
-    { name: "imagens", maxCount: 4 },             
+    { name: "imagens", maxCount: 12 },
+    { name: "portfolio", maxCount: 12 },
+    { name: "produtos", maxCount: 12 },
+    { name: "produtosImg", maxCount: 12 },
+    { name: "localImg", maxCount: 12 },
     { name: "vigilancia_sanitaria", maxCount: 1 }, 
     { name: "alvara_funcionamento", maxCount: 1 }  
   ]),
@@ -59,9 +63,31 @@ router.post(
 
 router.put(
   "/:id/solicitar-atualizacao",
+  authMiddleware,
   upload.fields([
     { name: "logo", maxCount: 1 },
-    { name: "imagens", maxCount: 4 },
+    { name: "imagens", maxCount: 12 },
+    { name: "portfolio", maxCount: 12 },
+    { name: "produtos", maxCount: 12 },
+    { name: "produtosImg", maxCount: 12 },
+    { name: "localImg", maxCount: 12 },
+    { name: "vigilancia_sanitaria", maxCount: 1 }, // Adicionado
+    { name: "alvara_funcionamento", maxCount: 1 }, // Adicionado
+  ]),
+  compressImages,
+  LocalController.solicitarAtualizacao,
+);
+
+router.post(
+  "/:id/solicitar-atualizacao",
+  authMiddleware,
+  upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "imagens", maxCount: 12 },
+    { name: "portfolio", maxCount: 12 },
+    { name: "produtos", maxCount: 12 },
+    { name: "produtosImg", maxCount: 12 },
+    { name: "localImg", maxCount: 12 },
     { name: "vigilancia_sanitaria", maxCount: 1 }, // Adicionado
     { name: "alvara_funcionamento", maxCount: 1 }, // Adicionado
   ]),
@@ -71,6 +97,7 @@ router.put(
 
 router.post(
   "/solicitar-exclusao",
+  authMiddleware,
   upload.fields([{ name: "alvara_funcionamento", maxCount: 1 }]),
   LocalController.solicitarExclusao,
 );

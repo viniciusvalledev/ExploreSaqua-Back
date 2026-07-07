@@ -263,8 +263,10 @@ export class AdminController {
               }
             }
 
+            const logoRecebida = dadosRecebidos.logoUrl || dadosRecebidos.logo;
+
             // --- LÓGICA DA LOGO RESTAURADA ---
-            if (dadosRecebidos.logo) {
+            if (logoRecebida) {
               const logoAntigaUrl = (local as any).logoUrl || (local as any).logo;
               if (logoAntigaUrl) {
                 try {
@@ -282,15 +284,20 @@ export class AdminController {
                   );
                 }
               }
-              dadosParaAtualizar.logoUrl = dadosRecebidos.logo;
+              dadosParaAtualizar.logoUrl = logoRecebida;
             }
             // --- FIM LOGICA LOGO ---
 
+            const imagensRecebidas = Array.isArray(dadosRecebidos.imagens)
+              ? dadosRecebidos.imagens
+              : Array.isArray(dadosRecebidos.produtos)
+                ? dadosRecebidos.produtos
+                : [];
+
             // Lógica de imagens (Produtos/Portfólio) mantida
             if (
-              dadosRecebidos.produtos &&
-              Array.isArray(dadosRecebidos.produtos) &&
-              dadosRecebidos.produtos.length > 0
+              Array.isArray(imagensRecebidas) &&
+              imagensRecebidas.length > 0
             ) {
               const imagensAntigas = await ImagemLocal.findAll({
                 where: { localId: local.localId },
@@ -314,7 +321,7 @@ export class AdminController {
                 transaction,
               });
 
-              const novasImagens = dadosRecebidos.produtos.map(
+              const novasImagens = imagensRecebidas.map(
                 (url: string) => ({
                   url,
                   localId: local.localId,
@@ -491,6 +498,12 @@ export class AdminController {
         statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO &&
         local.dados_atualizacao
       ) {
+        const logoRecebida = dadosRecebidos.logoUrl || dadosRecebidos.logo;
+        const imagensRecebidas = Array.isArray(dadosRecebidos.imagens)
+          ? dadosRecebidos.imagens
+          : Array.isArray(dadosRecebidos.produtos)
+            ? dadosRecebidos.produtos
+            : [];
         
         // --- LÓGICA DA LOGO RESTAURADA ---
         if (
@@ -511,7 +524,7 @@ export class AdminController {
           }
           adminEditedData.logoUrl = null;
         }
-        else if (dadosRecebidos.logo) {
+        else if (logoRecebida) {
           const logoAntigaUrl = (local as any).logoUrl;
           if (logoAntigaUrl) {
             try {
@@ -524,15 +537,14 @@ export class AdminController {
               );
             }
           }
-          adminEditedData.logoUrl = dadosRecebidos.logo;
+          adminEditedData.logoUrl = logoRecebida;
         }
         // --- FIM LÓGICA LOGO ---
 
         // Lógica para IMAGENS
         if (
-          dadosRecebidos.imagens &&
-          Array.isArray(dadosRecebidos.imagens) &&
-          dadosRecebidos.imagens.length > 0
+          Array.isArray(imagensRecebidas) &&
+          imagensRecebidas.length > 0
         ) {
           const imagensAntigas = await ImagemLocal.findAll({
             where: { localId: local.localId },
@@ -553,7 +565,7 @@ export class AdminController {
             transaction,
           });
 
-          const imagensParaCriar = dadosRecebidos.imagens.filter(
+          const imagensParaCriar = imagensRecebidas.filter(
             (url: string) => !(urlsParaExcluir && urlsParaExcluir.includes(url))
           );
 
@@ -694,6 +706,12 @@ export class AdminController {
 
       const statusOriginal = local.status;
       const dadosRecebidos = (local.dados_atualizacao || {}) as any;
+      const logoRecebida = dadosRecebidos.logoUrl || dadosRecebidos.logo;
+      const imagensRecebidas = Array.isArray(dadosRecebidos.imagens)
+        ? dadosRecebidos.imagens
+        : Array.isArray(dadosRecebidos.produtos)
+          ? dadosRecebidos.produtos
+          : [];
       let emailInfo: { subject: string; html: string } | null = null;
 
       // --- LÓGICA DA LOGO RESTAURADA ---
@@ -719,7 +737,7 @@ export class AdminController {
       } else if (
         (statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO ||
           statusOriginal === StatusLocal.PENDENTE_APROVACAO) &&
-        dadosRecebidos.logo
+        logoRecebida
       ) {
         const logoAntigaUrl = (local as any).logoUrl;
         if (logoAntigaUrl) {
@@ -733,7 +751,7 @@ export class AdminController {
             );
           }
         }
-        adminEditedData.logoUrl = dadosRecebidos.logo;
+        adminEditedData.logoUrl = logoRecebida;
       }
       // --- FIM LÓGICA LOGO ---
 
@@ -741,9 +759,8 @@ export class AdminController {
       if (
         (statusOriginal === StatusLocal.PENDENTE_ATUALIZACAO ||
           statusOriginal === StatusLocal.PENDENTE_APROVACAO) &&
-        dadosRecebidos.imagens &&
-        Array.isArray(dadosRecebidos.imagens) &&
-        dadosRecebidos.imagens.length > 0
+        Array.isArray(imagensRecebidas) &&
+        imagensRecebidas.length > 0
       ) {
         const imagensAntigas = await ImagemLocal.findAll({
           where: { localId: local.localId },
@@ -764,7 +781,7 @@ export class AdminController {
           transaction,
         });
 
-        const imagensParaCriar = dadosRecebidos.imagens.filter(
+        const imagensParaCriar = imagensRecebidas.filter(
           (url: string) => !(urlsParaExcluir && urlsParaExcluir.includes(url))
         );
 

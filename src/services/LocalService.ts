@@ -4,41 +4,143 @@ import Local, { StatusLocal } from "../entities/Local.entity";
 import ImagemLocal from "../entities/ImagemLocal.entity";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
-import { Request, Response } from "express";
 import ProfanityFilter from "../utils/ProfanityFilter";
 
+const normalizeString = (value: any): string | undefined => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+
+  if (rawValue === undefined || rawValue === null) {
+    return undefined;
+  }
+
+  const normalized = String(rawValue).trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  const lowered = normalized.toLowerCase();
+  if (lowered === "undefined" || lowered === "null") {
+    return undefined;
+  }
+
+  return normalized;
+};
+
+const parseOptionalNumber = (value: any): number | null => {
+  const normalized = normalizeString(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = parseFloat(normalized);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
 class LocalService {
-  localService: any;
 public async cadastrarLocalComImagens(dados: any): Promise<Local> {
     const transaction = await sequelize.transaction();
     try {
-const dadosParaCriacao = {
-  usuarioId: dados.usuarioId ? Number(dados.usuarioId) : null,
-  nomeLocal: String(dados.nomeLocal),
-  categoria: String(dados.categoria),
-  nomeResponsavel: String(dados.nomeResponsavel),
-  cpfResponsavel: String(dados.cpfResponsavel),
-  emailResponsavel: String(dados.emailResponsavel || dados.emailContato),
-  contatoResponsavel: String(dados.contatoResponsavel),
-  contatoLocal: String(dados.contatoLocal),
-  
-  endereco: String(dados.endereco),
-  descricao: String(dados.descricao),
-  instagram: String(dados.instagram),
-  latitude: dados.latitude ? parseFloat(String(dados.latitude)) : null,
-  longitude: dados.longitude ? parseFloat(String(dados.longitude)) : null,
-  logoUrl: String(dados.logoUrl),
-  alvaraFuncionamentoUrl: String(dados.alvaraFuncionamentoUrl),
-  alvaraVigilanciaUrl: String(dados.alvaraVigilanciaUrl),
-  ativo: false,
-  status: StatusLocal.PENDENTE_APROVACAO,
+      const usuarioId = dados.usuarioId ? Number(dados.usuarioId) : null;
+      let usuarioPerfil: Usuario | null = null;
+      let ultimoLocalDoUsuario: Local | null = null;
 
-  // Campos opcionais para indicar que este cadastro é uma indicação
-  tipoCadastro: dados.tipoCadastro ? String(dados.tipoCadastro) : undefined,
-  indicadorNome: dados.indicadorNome ? String(dados.indicadorNome) : undefined,
-  indicadorContato: dados.indicadorContato ? String(dados.indicadorContato) : undefined,
-  indicadorEmail: dados.indicadorEmail ? String(dados.indicadorEmail) : undefined,
-};
+      if (usuarioId) {
+        usuarioPerfil = await Usuario.findByPk(usuarioId, {
+          attributes: ["email", "nomeCompleto", "username"],
+          transaction,
+        });
+
+        ultimoLocalDoUsuario = await Local.findOne({
+          where: { usuarioId },
+          order: [["localId", "DESC"]],
+          attributes: [
+            "nomeResponsavel",
+            "cpfResponsavel",
+            "emailResponsavel",
+            "contatoResponsavel",
+          ],
+          transaction,
+        });
+      }
+
+      let emailResponsavel =
+        normalizeString(dados.emailResponsavel) ?? normalizeString(dados.emailContato);
+
+      if (!emailResponsavel && ultimoLocalDoUsuario) {
+        emailResponsavel = normalizeString((ultimoLocalDoUsuario as any)?.emailResponsavel);
+      }
+
+      // Fallback para fluxo de perfil: se o e-mail não vier no form,
+      // usa o e-mail da conta autenticada associada ao usuarioId.
+      if (!emailResponsavel && usuarioPerfil) {
+        emailResponsavel = normalizeString((usuarioPerfil as any)?.email);
+      }
+
+      let nomeResponsavel = normalizeString(dados.nomeResponsavel);
+
+      if (!nomeResponsavel && ultimoLocalDoUsuario) {
+        nomeResponsavel = normalizeString((ultimoLocalDoUsuario as any)?.nomeResponsavel);
+      }
+
+      // Fallback para fluxo de perfil: usa nome completo (ou username) do usuário logado.
+      if (!nomeResponsavel && usuarioPerfil) {
+        nomeResponsavel =
+          normalizeString((usuarioPerfil as any)?.nomeCompleto) ??
+          normalizeString((usuarioPerfil as any)?.username);
+      }
+
+      let cpfResponsavel = normalizeString(dados.cpfResponsavel);
+      if (!cpfResponsavel && ultimoLocalDoUsuario) {
+        cpfResponsavel = normalizeString((ultimoLocalDoUsuario as any)?.cpfResponsavel);
+      }
+
+      let contatoResponsavel = normalizeString(dados.contatoResponsavel);
+      if (!contatoResponsavel && ultimoLocalDoUsuario) {
+        contatoResponsavel = normalizeString((ultimoLocalDoUsuario as any)?.contatoResponsavel);
+      }
+
+      if (!emailResponsavel) {
+        throw new Error("O campo 'emailResponsavel' é obrigatório.");
+      }
+
+      if (!nomeResponsavel) {
+        throw new Error("O campo 'nomeResponsavel' é obrigatório.");
+      }
+
+      if (!cpfResponsavel) {
+        throw new Error("O campo 'cpfResponsavel' é obrigatório.");
+      }
+
+      if (!contatoResponsavel) {
+        throw new Error("O campo 'contatoResponsavel' é obrigatório.");
+      }
+
+      const dadosParaCriacao = {
+        usuarioId,
+        nomeLocal: normalizeString(dados.nomeLocal),
+        categoria: normalizeString(dados.categoria),
+        nomeResponsavel,
+        cpfResponsavel,
+        emailResponsavel,
+        contatoResponsavel,
+        contatoLocal: normalizeString(dados.contatoLocal),
+        endereco: normalizeString(dados.endereco),
+        descricao: normalizeString(dados.descricao),
+        instagram: normalizeString(dados.instagram),
+        latitude: parseOptionalNumber(dados.latitude),
+        longitude: parseOptionalNumber(dados.longitude),
+        logoUrl: normalizeString(dados.logoUrl),
+        alvaraFuncionamentoUrl: normalizeString(dados.alvaraFuncionamentoUrl),
+        alvaraVigilanciaUrl: normalizeString(dados.alvaraVigilanciaUrl),
+        ativo: false,
+        status: StatusLocal.PENDENTE_APROVACAO,
+
+        // Campos opcionais para indicar que este cadastro é uma indicação
+        tipoCadastro: normalizeString(dados.tipoCadastro),
+        indicadorNome: normalizeString(dados.indicadorNome),
+        indicadorContato: normalizeString(dados.indicadorContato),
+        indicadorEmail: normalizeString(dados.indicadorEmail),
+      };
 
       // Validação de conteúdo: verificar se algum campo contém palavrões
       const camposParaVerificar = ["nomeLocal", "descricao", "nomeResponsavel", "categoria", "endereco"];
@@ -63,9 +165,17 @@ const dadosParaCriacao = {
 
       const local = await Local.create(dadosParaCriacao, { transaction });
 
+      const imagensInput = Array.isArray(dados.imagens)
+        ? dados.imagens
+        : Array.isArray(dados.produtos)
+          ? dados.produtos
+          : Array.isArray(dados.portfolio)
+            ? dados.portfolio
+            : [];
+
       // Galeria de imagens
-      if (dados.imagens && dados.imagens.length > 0) {
-        const imagens = dados.imagens.map((url: string) => ({
+      if (imagensInput.length > 0) {
+        const imagens = imagensInput.map((url: string) => ({
           url,
           localId: local.localId,
         }));
@@ -80,26 +190,78 @@ const dadosParaCriacao = {
     }
   }
 
-public solicitarAtualizacao = async (p0: number, req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const body = req.body;
-        
-        // O Multer coloca os arquivos em req.files quando usamos upload.fields()
-        const files = (req as any).files as { [fieldname: string]: Express.Multer.File[] };
+  public async solicitarAtualizacao(
+    id: number,
+    dadosAtualizacao: any,
+  ): Promise<Local> {
+    const local = await Local.findByPk(id);
 
-        // Chama o service que você postou acima
-        const local = await this.localService.solicitarAtualizacao(
-            Number(id),
-            body,
-            files
-        );
-
-        res.status(200).json(local);
-    } catch (error: any) {
-        res.status(400).json({ message: error.message });
+    if (!local) {
+      throw new Error("Local não encontrado.");
     }
-};
+
+    const usuarioId = dadosAtualizacao?.usuarioId
+      ? Number(dadosAtualizacao.usuarioId)
+      : null;
+
+    if (usuarioId && local.usuarioId && Number(local.usuarioId) !== usuarioId) {
+      throw new Error("Você não tem permissão para atualizar este local.");
+    }
+
+    let emailResponsavel =
+      normalizeString(dadosAtualizacao.emailResponsavel) ??
+      normalizeString(dadosAtualizacao.emailContato) ??
+      normalizeString(local.emailResponsavel);
+
+    if (!emailResponsavel && usuarioId) {
+      const usuarioPerfil = await Usuario.findByPk(usuarioId, {
+        attributes: ["email"],
+      });
+      emailResponsavel = normalizeString((usuarioPerfil as any)?.email);
+    }
+
+    const imagensAtualizacao = Array.isArray(dadosAtualizacao.imagens)
+      ? dadosAtualizacao.imagens
+      : Array.isArray(dadosAtualizacao.produtos)
+        ? dadosAtualizacao.produtos
+        : Array.isArray(dadosAtualizacao.portfolio)
+          ? dadosAtualizacao.portfolio
+          : undefined;
+
+    const atualizacaoLimpa = {
+      ...dadosAtualizacao,
+      nomeLocal: normalizeString(dadosAtualizacao.nomeLocal),
+      categoria: normalizeString(dadosAtualizacao.categoria),
+      nomeResponsavel:
+        normalizeString(dadosAtualizacao.nomeResponsavel) ??
+        normalizeString(local.nomeResponsavel),
+      cpfResponsavel:
+        normalizeString(dadosAtualizacao.cpfResponsavel) ??
+        normalizeString(local.cpfResponsavel),
+      emailResponsavel,
+      contatoResponsavel:
+        normalizeString(dadosAtualizacao.contatoResponsavel) ??
+        normalizeString(local.contatoResponsavel),
+      contatoLocal: normalizeString(dadosAtualizacao.contatoLocal),
+      endereco: normalizeString(dadosAtualizacao.endereco),
+      descricao: normalizeString(dadosAtualizacao.descricao),
+      instagram: normalizeString(dadosAtualizacao.instagram),
+      latitude: parseOptionalNumber(dadosAtualizacao.latitude),
+      longitude: parseOptionalNumber(dadosAtualizacao.longitude),
+      logoUrl: normalizeString(dadosAtualizacao.logoUrl),
+      alvaraFuncionamentoUrl: normalizeString(dadosAtualizacao.alvaraFuncionamentoUrl),
+      alvaraVigilanciaUrl: normalizeString(dadosAtualizacao.alvaraVigilanciaUrl),
+      imagens: Array.isArray(imagensAtualizacao)
+        ? imagensAtualizacao.filter((img: any) => !!normalizeString(img))
+        : undefined,
+    };
+
+    local.status = StatusLocal.PENDENTE_ATUALIZACAO;
+    local.dados_atualizacao = atualizacaoLimpa;
+    await local.save();
+
+    return local;
+  }
 
   public async solicitarExclusao(
     id: number,
